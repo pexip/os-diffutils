@@ -1,0 +1,97 @@
+#!/usr/bin/make -f
+
+package = diffutils
+docdir = debian/tmp/usr/share/doc/$(package)
+
+export DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+export DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+
+ifeq ($(DEB_BUILD_GNU_TYPE), $(DEB_HOST_GNU_TYPE))
+  confflags += --build $(DEB_HOST_GNU_TYPE)
+  CROSS=""
+else
+  confflags += --build $(DEB_BUILD_GNU_TYPE) --host $(DEB_HOST_GNU_TYPE)
+  CROSS=$(DEB_HOST_GNU_TYPE)-
+endif
+
+CFLAGS = -g -Wall
+STRIP = true
+
+ifeq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+  CFLAGS += -O2
+endif
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
+  STRIP = $(CROSS)strip --remove-section=.comment --remove-section=.note
+endif
+
+build:
+	./configure $(confflags) --prefix=/usr
+	$(MAKE) CFLAGS="$(CFLAGS)"
+	touch build
+
+clean:
+	rm -f build
+	[ ! -f Makefile ] || $(MAKE) distclean
+	rm -f `find . -name "*~"`
+	rm -rf debian/tmp debian/files* core debian/substvars
+
+binary-indep: build
+	# diff
+	rm -rf debian/tmp
+	install -d debian/tmp/DEBIAN \
+		debian/tmp/usr/share/doc/diff
+	cp -p debian/copyright debian/tmp/usr/share/doc/diff
+	cp -p debian/changelog debian/tmp/usr/share/doc/diff/changelog.Debian
+	gzip -9 debian/tmp/usr/share/doc/diff/changelog.Debian
+	dpkg-gencontrol -pdiff
+	cd debian/tmp && \
+		md5sum `find * -type f ! -regex "DEBIAN/.*"` > DEBIAN/md5sums
+	chown -R 0:0 debian/tmp
+	chmod -R u+w,go=rX debian/tmp
+	dpkg --build debian/tmp ..	
+	# diffutils-doc
+	rm -rf debian/tmp
+	install -d debian/tmp/DEBIAN $(docdir)-doc \
+		debian/tmp/usr/share/doc-base
+	install -m 644 debian/diffutils-doc debian/tmp/usr/share/doc-base
+	cd doc && texi2html -split_chapter $(package).texi
+	mv doc/*.html $(docdir)-doc
+	ln -s $(package)_toc.html $(docdir)-doc/index.html
+	cp -p debian/copyright $(docdir)-doc
+	cp -p ChangeLog $(docdir)-doc/changelog
+	cp -p debian/changelog $(docdir)-doc/changelog.Debian
+	cd $(docdir)-doc && gzip -9 changelog changelog.Debian
+	dpkg-gencontrol -p$(package)-doc
+	cd debian/tmp && \
+		md5sum `find * -type f ! -regex "DEBIAN/.*"` > DEBIAN/md5sums
+	chown -R 0:0 debian/tmp
+	chmod -R go=rX debian/tmp
+	dpkg --build debian/tmp ..
+
+binary-arch: build
+	rm -rf debian/tmp
+	install -d debian/tmp/DEBIAN $(docdir)
+	cd debian/tmp && install -d usr/bin
+	$(MAKE) install prefix=`pwd`/debian/tmp/usr
+	cp -p NEWS debian/copyright $(docdir)
+	cp -p ChangeLog $(docdir)/changelog
+	cp -p debian/changelog $(docdir)/changelog.Debian
+	cd $(docdir) && gzip -9 changelog changelog.Debian
+	$(STRIP) debian/tmp/usr/bin/*
+	gzip -r9 debian/tmp/usr/share/info
+	gzip -r9 debian/tmp/usr/share/man
+	dpkg-shlibdeps debian/tmp/usr/bin/*
+	dpkg-gencontrol -p$(package)
+	cd debian/tmp && \
+		md5sum `find * -type f ! -regex "DEBIAN/.*"` > DEBIAN/md5sums
+	chown -R 0:0 debian/tmp
+	chmod -R u+w,go=rX debian/tmp
+	dpkg --build debian/tmp ..
+
+binary: binary-indep binary-arch
+
+build-arch: build
+
+build-indep: build
+
+.PHONY: binary binary-arch binary-indep build-arch build-indep clean
