@@ -1,11 +1,13 @@
 Source: diffutils
 Section: utils
 Priority: required
-Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Maintainer: Pexip AS <packaging@pexip.com>
+XSBC-Pexip-Original-Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 XSBC-Original-Maintainer: Santiago Vila <sanvila@debian.org>
 Build-Depends-Indep: texi2html (>= 1.82)
 Standards-Version: 3.9.2
 Homepage: http://www.gnu.org/software/diffutils/
+XS-Pexip-Upstream: http://archive.ubuntu.com/ubuntu/ precise
 
 Package: diffutils
 Essential: yes
