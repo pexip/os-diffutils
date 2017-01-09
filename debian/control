@@ -3,7 +3,7 @@ Section: utils
 Priority: required
 Maintainer: Santiago Vila <sanvila@debian.org>
 Build-Depends: debhelper (>= 9), texinfo
-Standards-Version: 3.9.3
+Standards-Version: 3.9.8
 Homepage: http://www.gnu.org/software/diffutils/
 
 Package: diffutils
