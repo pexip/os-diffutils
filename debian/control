@@ -4,7 +4,7 @@ Priority: required
 Maintainer: Pexip AS <packaging@pexip.com>
 XSBC-Pexip-Original-Maintainer: Santiago Vila <sanvila@debian.org>
 Build-Depends: debhelper (>= 9), texinfo
-Standards-Version: 3.9.3
+Standards-Version: 3.9.8
 Homepage: http://www.gnu.org/software/diffutils/
 XS-Pexip-Upstream: http://ftp.debian.org/debian/ stretch
 
