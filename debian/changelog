@@ -1,3 +1,31 @@
+diffutils (1:3.7-3) unstable; urgency=medium
+
+  * Disable tests/colors completely for buster. Closes: #922552.
+
+ -- Santiago Vila <sanvila@debian.org>  Mon, 08 Apr 2019 14:04:00 +0200
+
+diffutils (1:3.7-2) unstable; urgency=low
+
+  * Increase sleeping time from 1 to 5 seconds in tests/colors for ppc64el.
+    Closes: #922552 (hopefully).
+
+ -- Santiago Vila <sanvila@debian.org>  Mon, 18 Feb 2019 14:03:30 +0100
+
+diffutils (1:3.7-1) unstable; urgency=low
+
+  * New upstream release, fixes a memory problem and makes
+    diff --color compatible with less -R. See NEWS for details.
+  * Rules-Requires-Root: no
+
+ -- Santiago Vila <sanvila@debian.org>  Sun, 17 Feb 2019 23:50:00 +0100
+
+diffutils (1:3.6-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Should now build with GCC 7. Closes: #853373.
+
+ -- Santiago Vila <sanvila@debian.org>  Fri, 04 Aug 2017 23:20:16 +0200
+
 diffutils (1:3.5-3pexip1) pexip; urgency=medium
 
   * Migrate to Stretch
