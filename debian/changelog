@@ -1,3 +1,22 @@
+diffutils (1:3.7-5) unstable; urgency=medium
+
+  * Fix doc-base file. Closes: #978981.
+    Documentation is now in /usr/share/doc/diffutils.
+  * Include signature of upstream tarball in upload.
+
+ -- Santiago Vila <sanvila@debian.org>  Fri, 01 Jan 2021 18:52:00 +0100
+
+diffutils (1:3.7-4) unstable; urgency=medium
+
+  * Update translations from the Translation Project. Closes: #978736.
+    The updated po files are those who were already present in the
+    original tarball and had all its 266 messages translated.
+  * Update build-dependency on debhelper.
+  * Add build-dependency on gettext.
+  * Use https in homepage, copyright and watchfile.
+
+ -- Santiago Vila <sanvila@debian.org>  Thu, 31 Dec 2020 18:12:00 +0100
+
 diffutils (1:3.7-3) unstable; urgency=medium
 
   * Disable tests/colors completely for buster. Closes: #922552.

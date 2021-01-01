@@ -7,5 +7,5 @@ Abstract: This manual documents the GNU `diff', `diff3', `sdiff', and `cmp'
 Section: Text
 
 Format: HTML
-Index: /usr/share/doc/diffutils-doc/index.html
-Files: /usr/share/doc/diffutils-doc/*.html
+Index: /usr/share/doc/diffutils/index.html
+Files: /usr/share/doc/diffutils/*.html

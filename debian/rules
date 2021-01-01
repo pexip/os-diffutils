@@ -4,9 +4,16 @@
 
 package = diffutils
 
+override_dh_autoreconf:
+
+override_dh_auto_build:
+	dh_auto_build
+	$(MAKE) -C po update-gmo
+
 override_dh_auto_clean:
 	[ ! -f Makefile ] || $(MAKE) distclean
 	rm -rf doc/$(package)
+	rm -f po/*.gmo
 
 override_dh_auto_configure:
 	dh_auto_configure -- --disable-silent-rules
