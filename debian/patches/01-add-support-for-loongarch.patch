@@ -1,0 +1,48 @@
+From: Dandan Zhang <zhangdandan@loongson.cn>
+Subject: Add support for loongarch
+Bug-Debian: https://bugs.debian.org/1025140
+Bug-Debian: https://bugs.debian.org/1029275
+
+--- a/lib/sigsegv.c
++++ b/lib/sigsegv.c
+@@ -168,6 +168,18 @@
+    because $bsp and $bspstore never differ by more than ca. 1 KB.  */
+ #  define SIGSEGV_FAULT_BSP_POINTER  ((ucontext_t *) ucp)->uc_mcontext.sc_ar_bsp
+ 
++# elif defined __loongarch__ || defined __loongarch64
++
++/* See glibc/sysdeps/unix/sysv/linux/loongarch/sys/ucontext.h
++   and the definition of GET_STACK in
++   glibc/sysdeps/unix/sysv/linux/loongarch/sigcontextinfo.h.
++   Note that the 'mcontext_t' defined in
++   glibc/sysdeps/unix/sysv/linux/loongarch/sys/ucontext.h
++   and the 'struct sigcontext' defined in <asm/sigcontext.h>
++   are effectively the same.  */
++
++#  define SIGSEGV_FAULT_STACKPOINTER  ((ucontext_t *) ucp)->uc_mcontext.__gregs[LARCH_REG_SP]
++
+ # elif defined __m68k__
+ 
+ /* See glibc/sysdeps/unix/sysv/linux/m68k/sys/ucontext.h
+--- a/m4/host-cpu-c-abi.m4
++++ b/m4/host-cpu-c-abi.m4
+@@ -382,6 +382,9 @@
+ #ifndef __ia64__
+ #undef __ia64__
+ #endif
++#ifndef __loongarch64__
++#undef __loongarch64__
++#endif
+ #ifndef __m68k__
+ #undef __m68k__
+ #endif
+--- a/m4/stack-direction.m4
++++ b/m4/stack-direction.m4
+@@ -32,6 +32,7 @@
+       i?86 | x86_64 | \
+       i860 | \
+       ia64 | \
++      loongarch* | \
+       m32r | \
+       m68* | \
+       m88k | \

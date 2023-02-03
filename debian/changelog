@@ -1,3 +1,40 @@
+diffutils (1:3.8-4) unstable; urgency=medium
+
+  * Update patch for loong64 support. Closes: #1029275.
+  * Call makeinfo using --output option. This allows the package to be
+    built with Texinfo 7. Thanks to Hilmar Preusse. Closes: #1030319.
+  * Run wrap-and-sort.
+
+ -- Santiago Vila <sanvila@debian.org>  Fri, 03 Feb 2023 20:00:00 +0100
+
+diffutils (1:3.8-3) unstable; urgency=medium
+
+  * Use a common debian/watch file which is valid for most GNU packages.
+
+ -- Santiago Vila <sanvila@debian.org>  Tue, 20 Dec 2022 23:45:00 +0100
+
+diffutils (1:3.8-2) unstable; urgency=medium
+
+  * Convert debian/copyright to DEP-5 format. Closes: #1020560.
+    Thanks to Bastian Germann.
+  * Define SIGSEGV_FAULT_STACKPOINTER for loongarch. Closes: #1025140.
+    Temporarily enable autoreconf for the above to work.
+  * Set upstream metadata fields Bug-Submit, Name and Repository-Browse.
+  * Update standards version to 4.6.1.
+  * Update watch file format version to 4.
+
+ -- Santiago Vila <sanvila@debian.org>  Thu, 15 Dec 2022 21:45:00 +0100
+
+diffutils (1:3.8-1) unstable; urgency=medium
+
+  * New upstream release. Closes: #1004520, #1011740.
+  * Fix FTBFS with glibc 2.34. Closes: #1017153, #1017315.
+  * Drop build-dependency on gettext (and extra debian/rules stuff)
+    because we are using upstream po/gmo files directly again.
+  * Fix manpage typo. Closes: #946620.
+
+ -- Santiago Vila <sanvila@debian.org>  Mon, 15 Aug 2022 19:10:00 +0200
+
 diffutils (1:3.7-5) unstable; urgency=medium
 
   * Fix doc-base file. Closes: #978981.

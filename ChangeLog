@@ -1,4 +1,322 @@
+2021-08-01  Jim Meyering  <meyering@fb.com>
+
+	version 3.8
+	* NEWS: Record release date.
+
+	build: update gnulib to latest
+
+2021-07-31  Jim Meyering  <meyering@fb.com>
+
+	cmp: avoid reading uninitialized memory
+	[This *is* useful, so reapply. ]
+	When comparing buffers a word at a time, cmp could read up to
+	sizeof (word) - 1 uninitialized bytes.
+	* src/cmp.c (cmp): Set not just a single guaranteed-differing
+	sentinel byte just beyond any final read byte, but also ensure
+	that any following bytes are defined, if those may be read via
+	block_compare's word-at-a-time comparison.  Reported by Bruno Haible
+	in https://lists.gnu.org/r/diffutils-devel/2021-07/msg00003.html
+
+2021-07-28  Bruno Haible  <bruno@clisp.org>
+
+	cmp: avoid reading uninitialized memory
+	One or both of the sentinel bytes were copies of uninitialized values.
+	* src/cmp.c (cmp): Use arbitrary initialized values for the
+	sentinel bytes.
+
+2021-07-28  Jim Meyering  <meyering@fb.com>
+
+	cmp: revert preceding change
+	It did not solve the problem. The next patch does.
+
+2021-07-27  Jim Meyering  <meyering@fb.com>
+
+	cmp: avoid reading uninitialized memory
+	When comparing buffers a word at a time, cmp could read up to
+	sizeof (word) - 1 uninitialized bytes.
+	* src/cmp.c (cmp): Set not just a single guaranteed-differing
+	sentinel byte just beyond any final read byte, but also ensure
+	that any following bytes are defined, if those may be read via
+	block_compare's word-at-a-time comparison.  Reported by Bruno Haible
+	in https://lists.gnu.org/r/diffutils-devel/2021-07/msg00003.html
+
+2021-07-19  Paul Eggert  <eggert@cs.ucla.edu>
+
+	build: update gnulib submodule to latest
+
+2021-05-21  Paul Eggert  <eggert@cs.ucla.edu>
+
+	diff: better --color help
+	* src/diff.c (option_help_msgid): Reword --color help without
+	using the confusing word “default”.  Problem reported
+	by Peter Oliver (Bug#48532).
+
+2021-05-20  Paul Eggert  <eggert@cs.ucla.edu>
+
+	doc: fix URL in HACKING
+
+2021-03-24  Paul Eggert  <eggert@cs.ucla.edu>
+
+	diff: pacify compiler re style
+	* src/diff.c (usage): Prefer &"string"[N] to "string" + N.
+	Some compilers complain about the latter, as they worry C++
+	refugees will think it’s string concatnation.
+
+	diff3: avoid signed int overflow
+	* src/diff3.c (main): Avoid signed integer overflow in the very
+	unlikely case of more than INT_MAX incompatible options.  Instead,
+	use one bit to record the presence of each type of incompatible
+	option, and report an error if more than one bit is set.
+
+	maint: don’t bother with -Wno-return-local-addr
+	* configure.ac (WERROR_CFLAGS): Don’t bother with
+	-Wno-return-local-addr as it doesn’t seem to work.
+	Anyway, it’s no longer needed on Ubuntu 20.10.
+
+	maint: disable -Wstack-protector
+	* configure.ac (WERROR_CFLAGS): Disable -Wstack-protector, as it
+	has a false alarm with lib/vasnprintf.c on Ubuntu 20.10 and it’s
+	not worth working around.  Coreutils already disables it.
+
+	diff: plug memory leak in ifdef.c
+	Problem reported by Than (Bug#47362).
+	Fix the bug by using xmalloca instead of vararrays.
+	* bootstrap.conf (gnulib_modules): Add xmalloca; remove vararrays.
+	* configure.ac: Remove AC_C_VARARRAYS.
+	* src/ifdef.c: Include xmalloca.h instead of xalloc.h.
+	(do_printf_spec): Use xmalloca instead of an xmalloc
+	that lacks a corresponding ‘free’ if HAVE_C_VARARRAYS
+	due to a typo in 2017-05-18T05:51:31Z!meyering@fb.com.
+
+	build: update gnulib submodule to latest
+
+2021-01-02  Paul Eggert  <eggert@cs.ucla.edu>
+
+	maint: work around GCC -Wreturn-local-addr bug
+	* configure.ac: Do not use -Wreturn-local-addr in Gnulib,
+	to suppress a false alarm in vasnprintf.c.
+
+2021-01-01  Jim Meyering  <meyering@fb.com>
+
+	maint: update all copyright year number ranges
+	Run "make update-copyright" and then...
+	* gnulib: Update to latest with copyright year adjusted.
+	* tests/init.sh: Sync with gnulib to pick up copyright year.
+	* bootstrap: Likewise.
+
+2020-12-05  Jim Meyering  <meyering@fb.com>
+
+	build: require autoconf-2.64
+	* configure.ac: Require 2.64, up from 2.63, to align with gnulib.
+
+2020-03-15  Jim Meyering  <meyering@fb.com>
+
+	build: update gnulib to latest
+
+	doc: adjust formatting to make apropos (man -k) work better
+	* man/Makefile.am $(dist_man1_MANS): Adjust sed substitution
+	to also remove the space after "GNU". This avoids the single
+	leading space on each man page title line.  I'm guessing that
+	interfered with indexing/searching, causing "man -k diff3" to
+	print this: diff3 (1) - (unknown subject).
+	Reported by Dan Jacobon in http://bugs.gnu.org/39769.
+
+2020-01-19  Jim Meyering  <meyering@fb.com>
+
+	doc: correct an ancient "At present"
+	* doc/diffutils.texi (Unified Format): Correct the now
+	seriously outdated "At present" (referring to early 1990s)
+	statement to be more of a historical note.
+	Reported by Roland Illig in http://bugs.gnu.org/39184.
+
+2020-01-05  Jim Meyering  <meyering@fb.com>
+
+	doc: use program name, not "GNU", in the nroff/man header
+	* man/Makefile.am (dist_man1_MANS): Elide "GNU " prefix
+	from the generated prog+one-line-summary, so that help2man
+	uses the program name rather than "GNU" as the nroff "name".
+	Reported by Dan Jacobson in http://bugs.gnu.org/38574.
+
+2020-01-01  Jim Meyering  <meyering@fb.com>
+
+	maint: update all copyright year number ranges
+	Run "make update-copyright" and then...
+	* gnulib: Update to latest with copyright year adjusted.
+	* tests/init.sh: Sync with gnulib to pick up copyright year.
+	* bootstrap: Likewise.
+
+2019-12-29  Jim Meyering  <meyering@fb.com>
+
+	maint: avoid gnulib-tool deprecation warnings, and build failure
+	* bootstrap.conf (gnulib_modules): Use getopt-gnu, rather than
+	obsolete "getopt" module. Use nstrftime in place of strftime.
+	(avoided_gnulib_modules): Do not avoid the "lock" module. That
+	would lead to a build failure due to "glthread/lock.h not found".
+
+	maint: avoid syntax-check failure
+	* po/POTFILES.in: Add argmatch.h; remove xstrtol-error.c
+
+	maint: disable two and reenable many warning options
+	* configure.ac (GNULIB_WARN_CFLAGS): Disable -Wduplicated-branches
+	and -Wreturn-local-addr, due to a couple of false-positive warnings.
+	(WARN_CFLAGS): Reenable many warnings that now (with recent gcc)
+	provoke no false positive.
+
+	maint: avoid gnulib's lock-tests module
+	* bootstrap.conf (avoided_gnulib_modules): Also --avoid=lock-tests
+	to avoid gnulib-related build failure.
+
+2019-12-23  Jim Meyering  <meyering@fb.com>
+
+	build: update gnulib to latest
+	* gnulib: Update submodule to latest.
+	* bootstrap: Copy from gnulib.
+	* tests/init.sh: Likewise.
+
+2019-12-20  Jim Meyering  <meyering@fb.com>
+
+	maint: tweak bootstrap.conf
+	* bootstrap.conf (buildreq): Require at least autoconf 2.62,
+	up from 2.61, just as grep and coreutils do.
+	(bootstrap_post_import_hook): "Copy pkg-config's pkg.m4 ...",
+	copied from grep's bootstrap.conf.
+	(avoided_gnulib_modules): Pull this definition to the top.
+	Formatting.
+
+2019-10-01  Dave Odell  <dmo2118@gmail.com>  (tiny change)
+
+	cmp: add test case for Bug#37558
+	* tests/cmp: New test case (Bug#37558).
+
+2019-10-01  Paul Eggert  <eggert@cs.ucla.edu>
+
+	cmp: fix -l width bug
+	Problem reported by Dave Odell (Bug#37558).
+	* src/cmp.c (cmp): Treat negative ‘bytes’ as infinite, fixing a
+	bug introduced in the 2019-08-27 patch that fixed Bug#35256.
+
+2019-08-27  Paul Eggert  <eggert@cs.ucla.edu>
+
+	diff: don’t mistreat -N in arg as a large number
+	Problem reported by alec (Bug#35256).
+	* NEWS: Mention the fix.
+	* bootstrap.conf (gnulib_modules): Use strtoimax and xstrtoimax,
+	not strtoumax and strtoumax.
+	* src/cmp.c (bytes): Now signed, with -1 representing no limit.
+	All uses changed.
+	* src/cmp.c (specify_ignore_initial, main):
+	* src/diff.c (main):
+	* src/ifdef.c (format_group):
+	* src/sdiff.c (interact):
+	Use strtoimax, not strtoumax.
+
+	build: update gnulib submodule to latest
+
+2019-07-19  Paul Eggert  <eggert@cs.ucla.edu>
+
+	maint: ignore ‘configure’ temporaries
+	* .gitignore: Ignore confdefs*, conftest*.
+
+	maint: avoid Gnulib setlocale module
+	Problem reported for MS-Windows by Richard Gering (Bug#34376).
+	Diffutils doesn’t need any of the Gnulib fixes for setlocale.
+	* bootstrap.conf (gnulib_tool_option_extras):
+	Avoid the setlocale module.
+
+2019-05-24  KO Myung-Hun  <komh@chollian.net>
+
+	tests: init.cfg: use $PATH_SEPARATOR not ':'
+	On OS/2, a path separator is semi-colon ';' not colon ':'.
+	* tests/init.cfg: Replace ':' with $PATH_SEPARATOR.
+
+2019-01-20  Jim Meyering  <meyering@fb.com>
+
+	build: ensure no VLA is used
+	Cause developer builds to fail for any use of a VLA.
+	VLAs (variable length arrays) limit portability.
+	* configure.ac (nw): Remove -Wvla from the list of disabled warnings,
+	thus enabling the warning when configured with --enable-gcc-warnings.
+	(GNULIB_NO_VLA) Define, disabling use of VLAs in gnulib.  This commit
+	is functionally equivalent to coreutils' v8.30-44-gd26dece5d.
+
+	build: update gnulib to latest
+	* gnulib: Update to latest.
+	* po/POTFILES.in: Add lib/xstdopen.c.
+
+2019-01-06  Paul Eggert  <eggert@cs.ucla.edu>
+
+	diff: use xstdopen, not stdopen
+	* bootstrap.conf (gnulib_modules):
+	* src/cmp.c, src/diff.c, src/diff3.c, src/sdiff.c (main):
+	Use xstdopen, not stdopen.
+
+	build: update gnulib submodule to latest
+
+2019-01-05  Jim Meyering  <meyering@fb.com>
+
+	maint: convert all TABs to equivalent spaces in indentation
+	Using this file,
+
+	cat > leading-blank.exempt <<\EOF
+	(\.gitmodules|help2man|pre-commit)$
+	(?:^|\/)ChangeLog[^/]*$
+	(?:^|\/)(?:GNU)?[Mm]akefile[^/]*$
+	\.(?:am|mk)$
+	EOF
+
+	run the following command to convert all non-conforming leading white
+	space to be all spaces:
+
+	git ls-files \
+	  | pcregrep -vf leading-blank.exempt \
+	  | xargs pcregrep -l '^ *\t' \
+	  | xargs perl -MText::Tabs -ni -le \
+	    '$m=/^( *\t[ \t]*)(.*)/; print $m ? expand($1) . $2 : $_'
+
+	Since that changed old NEWS, I also ran "make update-NEWS-hash"
+	to update the old_NEWS_hash value in cfg.mk.
+
+2019-01-05  Paul Eggert  <eggert@cs.ucla.edu>
+
+	diff: fix cmp, diff3, sdiff with stdin closed
+	* NEWS: Mention this.
+	* src/cmp.c, src/diff3.c, src/sdiff.c: Include stdopen.h.
+	(main): Call stdopen early.
+	* src/cmp.c (main): Simplify now that we need not worry about
+	stdin being closed.
+	* src/diff.c (main): Translate stdopen diagnostic.
+
+	diff: remove unportable ‘diff -N - f <&-’ feature
+	* NEWS: Mention this.
+	* bootstrap.conf (gnulib_modules): Add stdopen.
+	* doc/diffutils.texi (Comparing Directories):
+	Do not document behavior if stdin is closed.
+	* src/diff.c: Include stdopen.h.
+	(main): Call stdopen early.
+	(compare_files) [__hpux]: Remove recently-introduced
+	special case for HP-UX exec with stdin closed.
+	* tests/new-file: Remove tests of the removed feature.
+
+	build: update gnulib submodule to latest
+
+2019-01-03  Bruno Haible  <bruno@clisp.org>
+
+	diff: recognize file descriptors closed by the parent process on HP-UX
+	* src/diff.c (compare_files): Use fcntl to distinguish a file
+	descriptor closed by the parent process from a file descriptor
+	that references /dev/null.
+
+2019-01-01  Jim Meyering  <meyering@fb.com>
+
+	maint: update all copyright dates via "make update-copyright"
+	* gnulib: Also update submodule for its copyright updates.
+
 2018-12-31  Jim Meyering  <meyering@fb.com>
+
+	maint: post-release administrivia
+	* NEWS: Add header line for next release.
+	* .prev-version: Record previous version.
+	* cfg.mk (old_NEWS_hash): Auto-update.
 
 	version 3.7
 	* NEWS: Record release date.
