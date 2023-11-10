@@ -1,5 +1,5 @@
 # Customize maint.mk                           -*- makefile -*-
-# Copyright (C) 2003-2013, 2015-2018 Free Software Foundation, Inc.
+# Copyright (C) 2003-2013, 2015-2021 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ announcement_Cc_ = $(translation_project_), $(PACKAGE)-devel@gnu.org
 # Now that we have better tests, make this the default.
 export VERBOSE = yes
 
-old_NEWS_hash = 773368daadfe6d96f43de867c87f45e7
+old_NEWS_hash = 883954bcb25c48755004736540de39e7
 
 # Tell maint.mk's syntax-check rules that diff gets config.h directly or
 # via diff.h or system.h.

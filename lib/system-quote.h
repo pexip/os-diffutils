@@ -1,5 +1,5 @@
 /* Quoting for a system command.
-   Copyright (C) 2001-2018 Free Software Foundation, Inc.
+   Copyright (C) 2001-2021 Free Software Foundation, Inc.
    Written by Bruno Haible <bruno@clisp.org>, 2012.
 
    This program is free software: you can redistribute it and/or modify
@@ -77,7 +77,7 @@ extern size_t
 /* Copies the quoted string to p and returns the incremented p.
    There must be room for system_quote_length (string) + 1 bytes at p.  */
 extern char *
-       system_quote_copy (char *p,
+       system_quote_copy (char *restrict p,
                           enum system_command_interpreter interpreter,
                           const char *string);
 
