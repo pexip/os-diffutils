@@ -1,12 +1,12 @@
-This is diffutils.info, produced by makeinfo version 6.5 from
+This is diffutils.info, produced by makeinfo version 6.8 from
 diffutils.texi.
 
-This manual is for GNU Diffutils (version 3.7, 7 January 2018), and
+This manual is for GNU Diffutils (version 3.8, 2 January 2021), and
 documents the GNU 'diff', 'diff3', 'sdiff', and 'cmp' commands for
 showing the differences between files and the GNU 'patch' command for
 using their output to update files.
 
-   Copyright (C) 1992-1994, 1998, 2001-2002, 2004, 2006, 2009-2018 Free
+   Copyright (C) 1992-1994, 1998, 2001-2002, 2004, 2006, 2009-2021 Free
 Software Foundation, Inc.
 
      Permission is granted to copy, distribute and/or modify this
@@ -35,12 +35,12 @@ File: diffutils.info,  Node: Top,  Next: Overview,  Up: (dir)
 Comparing and Merging Files
 ***************************
 
-This manual is for GNU Diffutils (version 3.7, 7 January 2018), and
+This manual is for GNU Diffutils (version 3.8, 2 January 2021), and
 documents the GNU 'diff', 'diff3', 'sdiff', and 'cmp' commands for
 showing the differences between files and the GNU 'patch' command for
 using their output to update files.
 
-   Copyright (C) 1992-1994, 1998, 2001-2002, 2004, 2006, 2009-2018 Free
+   Copyright (C) 1992-1994, 1998, 2001-2002, 2004, 2006, 2009-2021 Free
 Software Foundation, Inc.
 
      Permission is granted to copy, distribute and/or modify this
@@ -147,7 +147,7 @@ Science' (Jan Van Leeuwen, ed.), Vol. A, 'Algorithms and Complexity',
 Elsevier/MIT Press, 1990, pp. 255-300.
 
    GNU 'diff3' was written by Randy Smith.  GNU 'sdiff' was written by
-Thomas Lord.  GNU 'cmp' was written by Torbjo"rn Granlund and David
+Thomas Lord.  GNU 'cmp' was written by Torbjörn Granlund and David
 MacKenzie.
 
    GNU 'patch' was written mainly by Larry Wall and Paul Eggert; several
@@ -715,9 +715,10 @@ output format, use the '--unified[=LINES]' ('-U LINES'), or '-u' option.
 The argument LINES is the number of lines of context to show.  When it
 is not given, it defaults to three.
 
-   At present, only GNU 'diff' can produce this format and only GNU
-'patch' can automatically apply diffs in this format.  For proper
-operation, 'patch' typically needs at least three lines of context.
+   In the early 1990s, only GNU 'diff' could produce this format and
+only GNU 'patch' could automatically apply diffs in this format.  For
+proper operation, 'patch' typically needs at least three lines of
+context.
 
 * Menu:
 
@@ -1707,9 +1708,7 @@ either an insertion or a deletion, depending on whether the missing file
 is in the first or the second position.)  To do this, use the
 '--new-file' ('-N') option.  This option affects command-line arguments
 as well as files found via directory traversal; for example, 'diff -N a
-b' treats 'a' as empty if 'a' does not exist but 'b' does, and similarly
-'diff -N - b' treats standard input as empty if it is closed but 'b'
-exists.
+b' treats 'a' as empty if 'a' does not exist but 'b' does.
 
    If the older directory contains large files that are not in the newer
 directory, you can make the patch smaller by using the
@@ -4897,7 +4896,7 @@ Appendix A Copying This Manual
      the GNU Free Documentation License from time to time.  Such new
      versions will be similar in spirit to the present version, but may
      differ in detail to address new problems or concerns.  See
-     <https://www.gnu.org/copyleft/>.
+     <https://www.gnu.org/licenses/>.
 
      Each version of the License is given a distinguishing version
      number.  If the Document specifies that a particular numbered
@@ -5215,100 +5214,105 @@ Node: Example Context25865
 Node: Less Context27372
 Node: Detailed Context28561
 Node: Unified Format30756
-Node: Example Unified31553
-Node: Detailed Unified32591
-Node: Sections34231
-Node: Specified Headings34990
-Node: C Function Headings36539
-Node: Alternate Names37385
-Node: Side by Side38298
-Node: Side by Side Format40448
-Node: Example Side by Side41350
-Node: Normal42690
-Node: Example Normal43691
-Node: Detailed Normal44427
-Node: Scripts46166
-Node: ed Scripts46571
-Node: Example ed47777
-Node: Detailed ed48227
-Node: Forward ed49986
-Node: RCS50762
-Node: If-then-else51978
-Node: Line Group Formats53656
-Node: Line Formats59537
-Node: Example If-then-else62806
-Node: Detailed If-then-else63885
-Node: Incomplete Lines65770
-Node: Comparing Directories67406
-Node: Adjusting Output71698
-Node: Tabs72205
-Node: Trailing Blanks73819
-Node: Pagination75044
-Node: diff Performance75512
-Node: Comparing Three Files78601
-Node: Sample diff3 Input79479
-Node: Example diff3 Normal80427
-Node: Detailed diff3 Normal81487
-Node: diff3 Hunks83275
-Node: diff3 Merging84541
-Node: Which Changes86786
-Node: Marking Conflicts88186
-Node: Bypassing ed90641
-Node: Merging Incomplete Lines91984
-Node: Saving the Changed File92710
-Node: Interactive Merging93326
-Node: sdiff Option Summary94035
-Node: Merge Commands95238
-Node: Merging with patch96527
-Node: patch Input98894
-Node: Revision Control99576
-Node: Imperfect100746
-Node: Changed White Space101895
-Node: Reversed Patches102692
-Node: Inexact104156
-Node: Dry Runs107712
-Node: Creating and Removing108576
-Node: Patching Timestamps109625
-Node: Multiple Patches111812
-Node: patch Directories114473
-Node: Backups116097
-Node: Backup Names117161
-Ref: Backup Names-Footnote-1120116
-Node: Reject Names120243
-Node: patch Messages120832
-Node: More or Fewer Messages121892
-Node: patch and Keyboard Input122523
-Node: patch Quoting Style123552
-Node: patch and POSIX124698
-Node: patch and Tradition125537
-Node: Making Patches128958
-Node: Tips for Patch Producers129784
-Node: Tips for Patch Consumers131039
-Node: Avoiding Common Mistakes131676
-Node: Generating Smaller Patches134201
-Node: Invoking cmp135960
-Node: cmp Options137510
-Node: Invoking diff141154
-Node: diff Options142773
-Node: Invoking diff3152622
-Node: diff3 Options153260
-Node: Invoking patch156293
-Node: patch Options157501
-Node: Invoking sdiff162721
-Node: sdiff Options163863
-Node: Standards conformance166835
-Node: Projects168581
-Node: Shortcomings169293
-Node: Internationalization170393
-Node: Changing Structure171559
-Node: Special Files172662
-Node: Unusual File Names173773
-Node: Timestamp Order174411
-Node: Ignoring Changes175047
-Node: Speedups175816
-Node: Bugs176278
-Node: Copying This Manual177131
-Node: Translations202252
-Node: Index202624
+Node: Example Unified31565
+Node: Detailed Unified32603
+Node: Sections34243
+Node: Specified Headings35002
+Node: C Function Headings36551
+Node: Alternate Names37397
+Node: Side by Side38310
+Node: Side by Side Format40460
+Node: Example Side by Side41362
+Node: Normal42702
+Node: Example Normal43703
+Node: Detailed Normal44439
+Node: Scripts46178
+Node: ed Scripts46583
+Node: Example ed47789
+Node: Detailed ed48239
+Node: Forward ed49998
+Node: RCS50774
+Node: If-then-else51990
+Node: Line Group Formats53668
+Node: Line Formats59549
+Node: Example If-then-else62818
+Node: Detailed If-then-else63897
+Node: Incomplete Lines65782
+Node: Comparing Directories67418
+Node: Adjusting Output71619
+Node: Tabs72126
+Node: Trailing Blanks73740
+Node: Pagination74965
+Node: diff Performance75433
+Node: Comparing Three Files78522
+Node: Sample diff3 Input79400
+Node: Example diff3 Normal80348
+Node: Detailed diff3 Normal81408
+Node: diff3 Hunks83196
+Node: diff3 Merging84462
+Node: Which Changes86707
+Node: Marking Conflicts88107
+Node: Bypassing ed90562
+Node: Merging Incomplete Lines91905
+Node: Saving the Changed File92631
+Node: Interactive Merging93247
+Node: sdiff Option Summary93956
+Node: Merge Commands95159
+Node: Merging with patch96448
+Node: patch Input98815
+Node: Revision Control99497
+Node: Imperfect100667
+Node: Changed White Space101816
+Node: Reversed Patches102613
+Node: Inexact104077
+Node: Dry Runs107633
+Node: Creating and Removing108497
+Node: Patching Timestamps109546
+Node: Multiple Patches111733
+Node: patch Directories114394
+Node: Backups116018
+Node: Backup Names117082
+Ref: Backup Names-Footnote-1120037
+Node: Reject Names120164
+Node: patch Messages120753
+Node: More or Fewer Messages121813
+Node: patch and Keyboard Input122444
+Node: patch Quoting Style123473
+Node: patch and POSIX124619
+Node: patch and Tradition125458
+Node: Making Patches128879
+Node: Tips for Patch Producers129705
+Node: Tips for Patch Consumers130960
+Node: Avoiding Common Mistakes131597
+Node: Generating Smaller Patches134122
+Node: Invoking cmp135881
+Node: cmp Options137431
+Node: Invoking diff141075
+Node: diff Options142694
+Node: Invoking diff3152543
+Node: diff3 Options153181
+Node: Invoking patch156214
+Node: patch Options157422
+Node: Invoking sdiff162642
+Node: sdiff Options163784
+Node: Standards conformance166756
+Node: Projects168502
+Node: Shortcomings169214
+Node: Internationalization170314
+Node: Changing Structure171480
+Node: Special Files172583
+Node: Unusual File Names173694
+Node: Timestamp Order174332
+Node: Ignoring Changes174968
+Node: Speedups175737
+Node: Bugs176199
+Node: Copying This Manual177052
+Node: Translations202173
+Node: Index202545
 
 End Tag Table
+
+
+Local Variables:
+coding: utf-8
+End:
