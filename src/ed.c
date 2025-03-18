@@ -1,7 +1,7 @@
 /* Output routines for ed-script format.
 
    Copyright (C) 1988-1989, 1991-1993, 1995, 1998, 2001, 2004, 2006, 2009-2013,
-   2015-2021 Free Software Foundation, Inc.
+   2015-2023 Free Software Foundation, Inc.
 
    This file is part of GNU DIFF.
 
@@ -144,7 +144,7 @@ static void
 print_rcs_hunk (struct change *hunk)
 {
   lin i, f0, l0, f1, l1;
-  printint tf0, tl0, tf1, tl1;
+  lin tf0, tl0, tf1, tl1;
 
   /* Determine range of line numbers involved in each file.  */
   enum changes changes = analyze_hunk (hunk, &f0, &l0, &f1, &l1);

@@ -1,5 +1,5 @@
 /* Elementary Unicode string functions.
-   Copyright (C) 2001-2002, 2005-2021 Free Software Foundation, Inc.
+   Copyright (C) 2001-2002, 2005-2023 Free Software Foundation, Inc.
 
    This file is free software: you can redistribute it and/or modify
    it under the terms of the GNU Lesser General Public License as
@@ -24,6 +24,9 @@
 
 /* Get size_t, ptrdiff_t.  */
 #include <stddef.h>
+
+/* Get free().  */
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -624,11 +627,14 @@ extern int
 /* Duplicate S, returning an identical malloc'd string.  */
 /* Similar to strdup(), wcsdup().  */
 extern uint8_t *
-       u8_strdup (const uint8_t *s);
+       u8_strdup (const uint8_t *s)
+       _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE;
 extern uint16_t *
-       u16_strdup (const uint16_t *s);
+       u16_strdup (const uint16_t *s)
+       _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE;
 extern uint32_t *
-       u32_strdup (const uint32_t *s);
+       u32_strdup (const uint32_t *s)
+       _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE;
 
 /* Find the first occurrence of UC in STR.  */
 /* Similar to strchr(), wcschr().  */

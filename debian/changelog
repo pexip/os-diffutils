@@ -1,3 +1,26 @@
+diffutils (1:3.10-3) unstable; urgency=medium
+
+  * Add Vcs-Git and Vcs-Browser fields.
+  * Update Standards-Version.
+
+ -- Santiago Vila <sanvila@debian.org>  Tue, 18 Mar 2025 12:25:00 +0100
+
+diffutils (1:3.10-2) unstable; urgency=medium
+
+  * Add a preliminary debian/salsa-ci.yml.
+  * Add autopkgtests. Closes: #1087835.
+  * Do not trim Debian changelog.
+  * Update Standards-Version.
+
+ -- Santiago Vila <sanvila@debian.org>  Tue, 07 Jan 2025 12:15:00 +0100
+
+diffutils (1:3.10-1) unstable; urgency=low
+
+  * New upstream release. Closes: #1050391.
+  * Drop special treatment for loong64, should not be necessary anymore.
+
+ -- Santiago Vila <sanvila@debian.org>  Sun, 22 Oct 2023 20:50:00 +0200
+
 diffutils (1:3.8-4) unstable; urgency=medium
 
   * Update patch for loong64 support. Closes: #1029275.

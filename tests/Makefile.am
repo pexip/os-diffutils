@@ -10,6 +10,7 @@ TESTS = \
   diff3 \
   excess-slash \
   help-version	\
+  ifdef \
   invalid-re	\
   function-line-vs-leading-space \
   ignore-matching-lines \
@@ -22,7 +23,9 @@ TESTS = \
   strcoll-0-names \
   filename-quoting \
   strip-trailing-cr \
-  colors
+  timezone \
+  colors \
+  y2038-vs-32bit
 
 XFAIL_TESTS = large-subopt
 

@@ -3,8 +3,10 @@ Section: utils
 Priority: required
 Maintainer: Santiago Vila <sanvila@debian.org>
 Build-Depends: debhelper-compat (= 13), texinfo
-Standards-Version: 4.6.1
+Standards-Version: 4.7.2
 Homepage: https://www.gnu.org/software/diffutils/
+Vcs-Git: https://salsa.debian.org/sanvila/diffutils.git
+Vcs-Browser: https://salsa.debian.org/sanvila/diffutils
 Rules-Requires-Root: no
 
 Package: diffutils

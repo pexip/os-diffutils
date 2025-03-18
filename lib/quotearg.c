@@ -1,10 +1,10 @@
 /* quotearg.c - quote arguments for output
 
-   Copyright (C) 1998-2002, 2004-2021 Free Software Foundation, Inc.
+   Copyright (C) 1998-2002, 2004-2023 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
+   the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -38,7 +38,6 @@
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -787,7 +786,6 @@ quotearg_buffer (char *buffer, size_t buffersize,
   return r;
 }
 
-/* Equivalent to quotearg_alloc (ARG, ARGSIZE, NULL, O).  */
 char *
 quotearg_alloc (char const *arg, size_t argsize,
                 struct quoting_options const *o)

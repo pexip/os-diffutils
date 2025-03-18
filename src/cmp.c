@@ -1,7 +1,7 @@
 /* GNU cmp - compare two files byte by byte
 
    Copyright (C) 1990-1996, 1998, 2001-2002, 2004, 2006-2007, 2009-2013,
-   2015-2021 Free Software Foundation, Inc.
+   2015-2023 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,21 +39,25 @@
 #include <xstrtol.h>
 
 /* The official name of this program (e.g., no 'g' prefix).  */
-#define PROGRAM_NAME "cmp"
+static char const PROGRAM_NAME[] = "cmp";
 
 #define AUTHORS \
   proper_name_utf8 ("Torbjorn Granlund", "Torbj\303\266rn Granlund"), \
   proper_name ("David MacKenzie")
 
+static bool
+hard_locale_LC_MESSAGES (void)
+{
 #if defined LC_MESSAGES && ENABLE_NLS
-# define hard_locale_LC_MESSAGES hard_locale (LC_MESSAGES)
+  return hard_locale (LC_MESSAGES);
 #else
-# define hard_locale_LC_MESSAGES 0
+  return false;
 #endif
+}
 
 static int cmp (void);
 static off_t file_position (int);
-static size_t block_compare (word const *, word const *) _GL_ATTRIBUTE_PURE;
+static size_t block_compare (word const *, word const *) ATTRIBUTE_PURE;
 static size_t count_newlines (char *, size_t);
 static void sprintc (char *, unsigned char);
 
@@ -63,7 +67,8 @@ static char const *file[2];
 /* File descriptors of the files.  */
 static int file_desc[2];
 
-/* Status of the files.  */
+/* Status of the files.  If st_size is negative, the status is unknown
+   and st_blksize (if it exists) is just a reasonable guess.  */
 static struct stat stat_buf[2];
 
 /* Read buffers for the files.  */
@@ -110,8 +115,7 @@ static struct option const long_options[] =
   {0, 0, 0, 0}
 };
 
-static void try_help (char const *, char const *) __attribute__((noreturn));
-static void
+static _Noreturn void
 try_help (char const *reason_msgid, char const *operand)
 {
   if (reason_msgid)
@@ -252,7 +256,7 @@ main (int argc, char **argv)
 
       case 'v':
         version_etc (stdout, PROGRAM_NAME, PACKAGE_NAME, Version,
-                     AUTHORS, (char *) NULL);
+                     AUTHORS, nullptr);
         check_stdout ();
         return EXIT_SUCCESS;
 
@@ -295,21 +299,31 @@ main (int argc, char **argv)
             set_binary_mode (STDIN_FILENO, O_BINARY);
         }
       else
-        file_desc[f] = open (file[f], O_RDONLY | O_BINARY, 0);
-
-      if (file_desc[f] < 0 || fstat (file_desc[f], stat_buf + f) != 0)
         {
-          if (file_desc[f] < 0 && comparison_type == type_status)
-            exit (EXIT_TROUBLE);
-          else
-            die (EXIT_TROUBLE, errno, "%s", file[f]);
+          file_desc[f] = open (file[f], O_RDONLY | O_BINARY, 0);
+
+          if (file_desc[f] < 0)
+            {
+              if (comparison_type != type_status)
+                error (0, errno, "%s", file[f]);
+              exit (EXIT_TROUBLE);
+            }
+        }
+
+      if (fstat (file_desc[f], stat_buf + f) < 0)
+        {
+          stat_buf[f].st_size = -1;
+#if HAVE_STRUCT_STAT_ST_BLKSIZE
+          stat_buf[f].st_blksize = 8 * 1024;
+#endif
         }
     }
 
   /* If the files are links to the same inode and have the same file position,
      they are identical.  */
 
-  if (0 < same_file (&stat_buf[0], &stat_buf[1])
+  if (0 <= stat_buf[0].st_size && 0 <= stat_buf[1].st_size
+      && 0 < same_file (&stat_buf[0], &stat_buf[1])
       && same_file_attributes (&stat_buf[0], &stat_buf[1])
       && file_position (0) == file_position (1))
     return EXIT_SUCCESS;
@@ -333,8 +347,8 @@ main (int argc, char **argv)
      and if more bytes will be compared than are in the smaller file.  */
 
   if (comparison_type == type_status
-      && S_ISREG (stat_buf[0].st_mode)
-      && S_ISREG (stat_buf[1].st_mode))
+      && 0 <= stat_buf[0].st_size && S_ISREG (stat_buf[0].st_mode)
+      && 0 <= stat_buf[1].st_size && S_ISREG (stat_buf[1].st_mode))
     {
       off_t s0 = stat_buf[0].st_size - file_position (0);
       off_t s1 = stat_buf[1].st_size - file_position (1);
@@ -346,7 +360,7 @@ main (int argc, char **argv)
         exit (EXIT_FAILURE);
     }
 
-  /* Get the optimal block size of the files.  */
+  /* Guess a good block size for the files.  */
 
   buf_size = buffer_lcm (STAT_BLOCKSIZE (stat_buf[0]),
                          STAT_BLOCKSIZE (stat_buf[1]),
@@ -390,7 +404,7 @@ cmp (void)
   char *buf1 = (char *) buffer1;
   int differing = 0;
   int f;
-  int offset_width IF_LINT (= 0);
+  int offset_width IF_LINT (= 0); /* IF_LINT due to GCC bug 101768.  */
 
   if (comparison_type == type_all_diffs)
     {
@@ -398,7 +412,7 @@ cmp (void)
 			       ? bytes : TYPE_MAXIMUM (off_t));
 
       for (f = 0; f < 2; f++)
-        if (S_ISREG (stat_buf[f].st_mode))
+        if (0 <= stat_buf[f].st_size && S_ISREG (stat_buf[f].st_mode))
           {
             off_t file_bytes = stat_buf[f].st_size - file_position (f);
             if (file_bytes < byte_number_max)
@@ -507,7 +521,7 @@ cmp (void)
                       N_("%s %s differ: byte %s, line %s\n");
                     char const *byte_message = _(byte_msgid);
                     bool use_byte_message = (byte_message != byte_msgid
-                                             || hard_locale_LC_MESSAGES);
+                                             || hard_locale_LC_MESSAGES ());
 
                     printf (use_byte_message ? byte_message : char_message,
                             file[0], file[1], byte_num, line_num);

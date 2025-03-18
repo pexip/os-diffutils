@@ -1,6 +1,6 @@
 # Configure template for GNU Diffutils.
 
-# Copyright (C) 1994-1995, 1998, 2001-2002, 2004, 2006, 2009-2013, 2015-2021
+# Copyright (C) 1994-1995, 1998, 2001-2002, 2004, 2006, 2009-2013, 2015-2023
 # Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
@@ -84,7 +84,8 @@ if test "$gl_gcc_warnings" = yes; then
 
   AC_SUBST([WARN_CFLAGS])
 
-  AC_DEFINE([lint], [1], [Define to 1 if the compiler is checking for lint.])
+  AC_DEFINE([GCC_LINT], [1],
+    [Define to 1 if the compiler is checking for lint.])
   AC_DEFINE([_FORTIFY_SOURCE], [2],
     [enable compile-time and run-time bounds-checking, and some warnings])
   AC_DEFINE([GNULIB_PORTCHECK], [1], [enable some gnulib portability checks])
@@ -95,10 +96,6 @@ if test "$gl_gcc_warnings" = yes; then
   nw="$nw -Wunused-macros"
   nw="$nw -Wsuggest-attribute=pure"
   nw="$nw -Wduplicated-branches"    # Too many false alarms
-
-  # Avoid false alarm in lib/vasnprintf.c.
-  # https://lists.gnu.org/r/bug-gnulib/2021-01/msg00031.html
-  gl_WARN_ADD([-Wno-analyzer-null-argument])
 
   gl_MANYWARN_COMPLEMENT([GNULIB_WARN_CFLAGS], [$WARN_CFLAGS], [$nw])
   AC_SUBST([GNULIB_WARN_CFLAGS])
