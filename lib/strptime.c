@@ -1,4 +1,4 @@
-/* Copyright (C) 2002, 2004-2005, 2007, 2009-2021 Free Software Foundation,
+/* Copyright (C) 2002, 2004-2005, 2007, 2009-2023 Free Software Foundation,
    Inc.
    This file is part of the GNU C Library.
 
@@ -29,9 +29,9 @@
 #include <limits.h>
 #include <string.h>
 #include <strings.h>
-#include <stdbool.h>
 
 #ifdef _LIBC
+# include <stdbool.h>
 # include "../locale/localeinfo.h"
 #endif
 
@@ -684,7 +684,7 @@ __strptime_internal (rp, fmt, tm, decided, era_cnt LOCALE_PARAM)
              specify hours.  If fours digits are used, minutes are
              also specified.  */
           {
-            bool neg _GL_UNUSED;
+            _GL_UNUSED bool neg;
             int n;
 
             val = 0;

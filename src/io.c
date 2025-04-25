@@ -1,7 +1,7 @@
 /* File I/O for GNU DIFF.
 
    Copyright (C) 1988-1989, 1992-1995, 1998, 2001-2002, 2004, 2006, 2009-2013,
-   2015-2021 Free Software Foundation, Inc.
+   2015-2023 Free Software Foundation, Inc.
 
    This file is part of GNU DIFF.
 
@@ -64,6 +64,15 @@ static lin equivs_index;
 /* Number of elements allocated in the array 'equivs'.  */
 static lin equivs_alloc;
 
+/* The file buffer, considered as an array of bytes rather than
+   as an array of words.  */
+
+static char *
+file_buffer (struct file_data const *f)
+{
+  return (char *) f->buffer;
+}
+
 /* Read a block of data into a file buffer, checking for EOF and error.  */
 
 void
@@ -72,7 +81,7 @@ file_block_read (struct file_data *current, size_t size)
   if (size && ! current->eof)
     {
       size_t s = block_read (current->desc,
-                             FILE_BUFFER (current) + current->buffered, size);
+                             file_buffer (current) + current->buffered, size);
       if (s == SIZE_MAX)
         pfatal_with_name (current->name);
       current->buffered += s;
@@ -165,10 +174,9 @@ slurp (struct file_data *current)
       /* Get the size out of the stat block.
          Allocate just enough room for appended newline plus word sentinel,
          plus word-alignment since we want the buffer word-aligned.  */
-      size_t file_size = current->stat.st_size;
-      cc = file_size + 2 * sizeof (word) - file_size % sizeof (word);
-      if (file_size != current->stat.st_size || cc < file_size
-          || PTRDIFF_MAX <= cc)
+      off_t file_size = current->stat.st_size;
+      if (INT_ADD_WRAPV (2 * sizeof (word) - file_size % sizeof (word),
+			 file_size, &cc))
         xalloc_die ();
 
       if (current->bufsize < cc)
@@ -233,7 +241,7 @@ find_and_hash_each_line (struct file_data *current)
   lin eqs_index = equivs_index;
   lin eqs_alloc = equivs_alloc;
   char const *suffix_begin = current->suffix_begin;
-  char const *bufend = FILE_BUFFER (current) + current->buffered;
+  char const *bufend = file_buffer (current) + current->buffered;
   bool ig_case = ignore_case;
   enum DIFF_white_space ig_white_space = ignore_white_space;
   bool diff_length_compare_anyway =
@@ -348,7 +356,7 @@ find_and_hash_each_line (struct file_data *current)
 
       if (p == bufend
           && current->missing_newline
-          && ROBUST_OUTPUT_STYLE (output_style))
+          && robust_output_style (output_style))
         {
           /* The last line is incomplete and we do not silently
              complete lines.  If the line cannot compare equal to any
@@ -447,7 +455,7 @@ find_and_hash_each_line (struct file_data *current)
         {
           /* If the last line is incomplete and we do not silently
              complete lines, don't count its appended newline.  */
-          if (current->missing_newline && ROBUST_OUTPUT_STYLE (output_style))
+          if (current->missing_newline && robust_output_style (output_style))
             linbuf[line]--;
           break;
         }
@@ -480,7 +488,7 @@ static void
 prepare_text (struct file_data *current)
 {
   size_t buffered = current->buffered;
-  char *p = FILE_BUFFER (current);
+  char *p = file_buffer (current);
   if (!p)
     return;
 
@@ -590,7 +598,7 @@ find_identical_ends (struct file_data filevec[])
         p0++, p1++;
 
       /* Don't mistakenly count missing newline as part of prefix.  */
-      if (ROBUST_OUTPUT_STYLE (output_style)
+      if (robust_output_style (output_style)
           && ((buffer0 + n0 - filevec[0].missing_newline < p0)
               !=
               (buffer1 + n1 - filevec[1].missing_newline < p1)))
@@ -615,7 +623,7 @@ find_identical_ends (struct file_data filevec[])
   p0 = buffer0 + n0;
   p1 = buffer1 + n1;
 
-  if (! ROBUST_OUTPUT_STYLE (output_style)
+  if (! robust_output_style (output_style)
       || filevec[0].missing_newline == filevec[1].missing_newline)
     {
       end0 = p0;	/* Addr of last char in file 0.  */
@@ -716,11 +724,11 @@ find_identical_ends (struct file_data filevec[])
 
   middle_guess = guess_lines (lines, p0 - buffer0, p1 - filevec[1].prefix_end);
   suffix_guess = guess_lines (lines, p0 - buffer0, buffer1 + n1 - p1);
-  alloc_lines1 = buffered_prefix + middle_guess + MIN (context, suffix_guess);
-  if (alloc_lines1 < buffered_prefix
-      || PTRDIFF_MAX / sizeof *linbuf1 <= alloc_lines1)
+  if (INT_ADD_WRAPV (buffered_prefix,
+		     middle_guess + MIN (context, suffix_guess),
+		     &alloc_lines1))
     xalloc_die ();
-  linbuf1 = xmalloc (alloc_lines1 * sizeof *linbuf1);
+  linbuf1 = xnmalloc (alloc_lines1, sizeof *linbuf1);
 
   if (buffered_prefix != lines)
     {
@@ -791,9 +799,7 @@ read_files (struct file_data filevec[], bool pretend_binary)
   find_identical_ends (filevec);
 
   equivs_alloc = filevec[0].alloc_lines + filevec[1].alloc_lines + 1;
-  if (PTRDIFF_MAX / sizeof *equivs <= equivs_alloc)
-    xalloc_die ();
-  equivs = xmalloc (equivs_alloc * sizeof *equivs);
+  equivs = xnmalloc (equivs_alloc, sizeof *equivs);
   /* Equivalence class 0 is permanently safe for lines that were not
      hashed.  Real equivalence classes start at 1.  */
   equivs_index = 1;
@@ -804,9 +810,7 @@ read_files (struct file_data filevec[], bool pretend_binary)
   for (i = 9; (size_t) 1 << i < equivs_alloc / 3; i++)
     continue;
   nbuckets = ((size_t) 1 << i) - prime_offset[i];
-  if (PTRDIFF_MAX / sizeof *buckets <= nbuckets)
-    xalloc_die ();
-  buckets = zalloc ((nbuckets + 1) * sizeof *buckets);
+  buckets = xcalloc (nbuckets + 1, sizeof *buckets);
   buckets++;
 
   for (i = 0; i < 2; i++)

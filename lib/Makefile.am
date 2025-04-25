@@ -1,6 +1,6 @@
 # Automakefile for GNU Diffutils library.
 
-# Copyright (C) 2001-2002, 2004, 2006, 2009-2013, 2015-2021 Free Software
+# Copyright (C) 2001-2002, 2004, 2006, 2009-2013, 2015-2023 Free Software
 # Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
@@ -29,7 +29,7 @@ noinst_HEADERS =
 
 include gnulib.mk
 
-noinst_HEADERS += cmpbuf.h prepargs.h
-libdiffutils_a_SOURCES += cmpbuf.c prepargs.c
+noinst_HEADERS += cmpbuf.h
+libdiffutils_a_SOURCES += cmpbuf.c
 
 AM_CFLAGS += $(GNULIB_WARN_CFLAGS) $(WERROR_CFLAGS)

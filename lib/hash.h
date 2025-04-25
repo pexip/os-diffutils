@@ -1,5 +1,5 @@
 /* hash - hashing table processing.
-   Copyright (C) 1998-1999, 2001, 2003, 2009-2021 Free Software Foundation,
+   Copyright (C) 1998-1999, 2001, 2003, 2009-2023 Free Software Foundation,
    Inc.
    Written by Jim Meyering <meyering@ascend.com>, 1998.
 
@@ -24,8 +24,14 @@
 #ifndef HASH_H_
 # define HASH_H_
 
+/* This file uses _GL_ATTRIBUTE_DEALLOC, _GL_ATTRIBUTE_DEPRECATED,
+   _GL_ATTRIBUTE_MALLOC, _GL_ATTRIBUTE_NODISCARD, _GL_ATTRIBUTE_PURE,
+   _GL_ATTRIBUTE_RETURNS_NONNULL.  */
+#if !_GL_CONFIG_H_INCLUDED
+ #error "Please include config.h first."
+#endif
+
 # include <stdio.h>
-# include <stdbool.h>
 
 # ifdef __cplusplus
 extern "C" {
@@ -139,6 +145,12 @@ typedef size_t (*Hash_hasher) (const void *entry, size_t table_size);
 typedef bool (*Hash_comparator) (const void *entry1, const void *entry2);
 typedef void (*Hash_data_freer) (void *entry);
 
+/* Reclaim all storage associated with a hash table.  If a data_freer
+   function has been supplied by the user when the hash table was created,
+   this function applies it to the data of each entry before freeing that
+   entry.  */
+extern void hash_free (Hash_table *table);
+
 /* Allocate and return a new hash table, or NULL upon failure.  The initial
    number of buckets is automatically selected so as to _guarantee_ that you
    may insert at least CANDIDATE different user entries before any growth of
@@ -177,7 +189,8 @@ extern Hash_table *hash_initialize (size_t candidate,
                                     const Hash_tuning *tuning,
                                     Hash_hasher hasher,
                                     Hash_comparator comparator,
-                                    Hash_data_freer data_freer);
+                                    Hash_data_freer data_freer)
+  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC (hash_free, 1);
 
 /* Same as hash_initialize, but invokes xalloc_die on memory exhaustion.  */
 /* This function is defined by module 'xhash'.  */
@@ -186,18 +199,14 @@ extern Hash_table *hash_xinitialize (size_t candidate,
                                      const Hash_tuning *tuning,
                                      Hash_hasher hasher,
                                      Hash_comparator comparator,
-                                     Hash_data_freer data_freer);
+                                     Hash_data_freer data_freer)
+  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC (hash_free, 1)
+  _GL_ATTRIBUTE_RETURNS_NONNULL;
 
 /* Make all buckets empty, placing any chained entries on the free list.
    Apply the user-specified function data_freer (if any) to the datas of any
    affected entries.  */
 extern void hash_clear (Hash_table *table);
-
-/* Reclaim all storage associated with a hash table.  If a data_freer
-   function has been supplied by the user when the hash table was created,
-   this function applies it to the data of each entry before freeing that
-   entry.  */
-extern void hash_free (Hash_table *table);
 
 /*
  * Insertion and deletion.

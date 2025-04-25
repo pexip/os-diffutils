@@ -1,5 +1,5 @@
 # Customize maint.mk                           -*- makefile -*-
-# Copyright (C) 2003-2013, 2015-2021 Free Software Foundation, Inc.
+# Copyright (C) 2003-2013, 2015-2023 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,8 @@ manual_title = Comparing and Merging Files
 # Tests not to run as part of "make distcheck".
 local-checks-to-skip =		\
   sc_error_message_period	\
-  sc_error_message_uppercase
+  sc_error_message_uppercase	\
+  sc_indent
 
 # Tools used to bootstrap this package, used for "announcement".
 bootstrap-tools = autoconf,automake,gnulib
@@ -35,7 +36,7 @@ announcement_Cc_ = $(translation_project_), $(PACKAGE)-devel@gnu.org
 # Now that we have better tests, make this the default.
 export VERBOSE = yes
 
-old_NEWS_hash = 883954bcb25c48755004736540de39e7
+old_NEWS_hash = cf070086af56e7394cc5a0c862d0cd11
 
 # Tell maint.mk's syntax-check rules that diff gets config.h directly or
 # via diff.h or system.h.
@@ -70,6 +71,7 @@ config-save:
 	cp lib/config.h config.status $(_cf_state_dir)/latest
 
 exclude_file_name_regexp--sc_space_tab = ^gl/lib/.*\.c\.diff$$
+exclude_file_name_regexp--sc_prohibit_doubled_word = ^tests/y2038-vs-32bit$$
 
 # Tell gnulib's tight_scope rule that we mark externs with XTERN
-export _gl_TS_extern = extern|XTERN
+export _gl_TS_extern = extern|XTERN|DIFF_INLINE

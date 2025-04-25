@@ -1,6 +1,6 @@
 /* Buffer primitives for comparison operations.
 
-   Copyright (C) 1993, 1995, 1998, 2001-2002, 2006, 2009-2013, 2015-2021 Free
+   Copyright (C) 1993, 1995, 1998, 2001-2002, 2006, 2009-2013, 2015-2023 Free
    Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
@@ -104,6 +104,5 @@ buffer_lcm (size_t a, size_t b, size_t lcm_max)
 
   /* Yield a if there is an overflow.  */
   q = a / n;
-  lcm = q * b;
-  return lcm <= lcm_max && lcm / b == q ? lcm : a;
+  return !INT_MULTIPLY_WRAPV (q, b, &lcm) && lcm <= lcm_max ? lcm : a;
 }

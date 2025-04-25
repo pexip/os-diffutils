@@ -1,6 +1,6 @@
 # Automakefile for GNU diffutils programs.
 
-# Copyright (C) 2001-2002, 2006, 2009-2013, 2015-2021 Free Software Foundation,
+# Copyright (C) 2001-2002, 2006, 2009-2013, 2015-2023 Free Software Foundation,
 # Inc.
 
 # This program is free software: you can redistribute it and/or modify
@@ -30,11 +30,16 @@ LDADD = \
   $(LIBINTL) \
   $(LIBICONV) \
   $(LIBSIGSEGV) \
-  $(LIB_CLOCK_GETTIME)
+  $(LIBTHREAD) \
+  $(LIBUNISTRING) \
+  $(CLOCK_TIME_LIB) \
+  $(HARD_LOCALE_LIB) \
+  $(MBRTOWC_LIB) \
+  $(SETLOCALE_NULL_LIB)
 
 diff_LDADD = $(LDADD)
 cmp_LDADD = $(LDADD)
-sdiff_LDADD = $(LDADD)
+sdiff_LDADD = $(LDADD) $(GETRANDOM_LIB)
 diff3_LDADD = $(LDADD)
 
 cmp_SOURCES = cmp.c

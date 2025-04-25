@@ -1,7 +1,7 @@
 /* GNU diff - compare files line by line
 
    Copyright (C) 1988-1989, 1992-1994, 1996, 1998, 2001-2002, 2004, 2006-2007,
-   2009-2013, 2015-2021 Free Software Foundation, Inc.
+   2009-2013, 2015-2023 Free Software Foundation, Inc.
 
    This file is part of GNU DIFF.
 
@@ -33,7 +33,6 @@
 #include <fnmatch.h>
 #include <getopt.h>
 #include <hard-locale.h>
-#include <prepargs.h>
 #include <progname.h>
 #include <sh-quote.h>
 #include <stat-time.h>
@@ -45,7 +44,7 @@
 #include <binary-io.h>
 
 /* The official name of this program (e.g., no 'g' prefix).  */
-#define PROGRAM_NAME "diff"
+static char const PROGRAM_NAME[] = "diff";
 
 #define AUTHORS \
   proper_name ("Paul Eggert"), \
@@ -73,7 +72,7 @@ static void summarize_regexp_list (struct regexp_list *);
 static void specify_style (enum output_style);
 static void specify_value (char const **, char const *, char const *);
 static void specify_colors_style (char const *);
-static void try_help (char const *, char const *) __attribute__((noreturn));
+static _Noreturn void try_help (char const *, char const *);
 static void check_stdout (void);
 static void usage (void);
 
@@ -105,6 +104,9 @@ static bool unidirectional_new_file;
 /* Report files compared that are the same (-s).
    Normally nothing is output when that happens.  */
 static bool report_identical_files;
+
+/* Do not treat directories specially.  */
+static bool no_directory;
 
 static char const shortopts[] =
 "0123456789abBcC:dD:eEfF:hHiI:lL:nNpPqrsS:tTuU:vwW:x:X:yZ";
@@ -144,6 +146,7 @@ enum
   COLOR_OPTION,
   COLOR_PALETTE_OPTION,
 
+  NO_DIRECTORY_OPTION,
   PRESUME_OUTPUT_TTY_OPTION,
 };
 
@@ -224,8 +227,11 @@ static struct option const longopts[] =
   {"version", 0, 0, 'v'},
   {"width", 1, 0, 'W'},
 
+  /* This is solely for diff3.  Do not document.  */
+  {"-no-directory", no_argument, nullptr, NO_DIRECTORY_OPTION},
+
   /* This is solely for testing.  Do not document.  */
-  {"-presume-output-tty", no_argument, NULL, PRESUME_OUTPUT_TTY_OPTION},
+  {"-presume-output-tty", no_argument, nullptr, PRESUME_OUTPUT_TTY_OPTION},
   {0, 0, 0, 0}
 };
 
@@ -246,7 +252,11 @@ option_list (char **optionvec, int count)
   char *p;
 
   for (i = 0; i < count; i++)
-    size += 1 + shell_quote_length (optionvec[i]);
+    {
+      size_t optsize = 1 + shell_quote_length (optionvec[i]);
+      if (INT_ADD_WRAPV (optsize, size, &size))
+	xalloc_die ();
+    }
 
   p = result = xmalloc (size);
 
@@ -280,8 +290,8 @@ main (int argc, char **argv)
   bool explicit_context = false;
   size_t width = 0;
   bool show_c_function = false;
-  char const *from_file = NULL;
-  char const *to_file = NULL;
+  char const *from_file = nullptr;
+  char const *to_file = nullptr;
   intmax_t numval;
   char *numend;
 
@@ -302,7 +312,7 @@ main (int argc, char **argv)
 
   /* Decode the options.  */
 
-  while ((c = getopt_long (argc, argv, shortopts, longopts, NULL)) != -1)
+  while ((c = getopt_long (argc, argv, shortopts, longopts, nullptr)) != -1)
     {
       switch (c)
         {
@@ -379,21 +389,60 @@ main (int argc, char **argv)
         case 'D':
           specify_style (OUTPUT_IFDEF);
           {
-            static char const C_ifdef_group_formats[] =
-              "%%=%c#ifndef %s\n%%<#endif /* ! %s */\n%c#ifdef %s\n%%>#endif /* %s */\n%c#ifndef %s\n%%<#else /* %s */\n%%>#endif /* %s */\n";
-            char *b = xmalloc (sizeof C_ifdef_group_formats
-                               + 7 * strlen (optarg) - 14 /* 7*"%s" */
-                               - 8 /* 5*"%%" + 3*"%c" */);
-            sprintf (b, C_ifdef_group_formats,
-                     0,
-                     optarg, optarg, 0,
-                     optarg, optarg, 0,
-                     optarg, optarg, optarg);
-            for (i = 0; i < sizeof group_format / sizeof group_format[0]; i++)
-              {
-                specify_value (&group_format[i], b, "-D");
-                b += strlen (b) + 1;
-              }
+	    static char const C_ifdef_group_formats[]
+	      = (/* UNCHANGED */
+		 "%="
+		 "\0"
+
+		 /* OLD */
+		 "#ifndef @\n"
+		 "%<"
+		 "#endif /* ! @ */\n"
+		 "\0"
+
+		 /* NEW */
+		 "#ifdef @\n"
+		 "%>"
+		 "#endif /* @ */\n"
+		 "\0"
+
+		 /* CHANGED */
+		 "#ifndef @\n"
+		 "%<"
+		 "#else /* @ */\n"
+		 "%>"
+		 "#endif /* @ */\n");
+
+	    size_t alloc = strlen (optarg);
+	    if (INT_MULTIPLY_WRAPV (alloc, 7, &alloc)
+		|| INT_ADD_WRAPV (alloc,
+				  sizeof C_ifdef_group_formats - 7 /* 7*"@" */,
+				  &alloc))
+	      xalloc_die ();
+	    char *b = xmalloc (alloc);
+	    char *base = b;
+	    int changes = 0;
+
+	    for (i = 0; i < sizeof C_ifdef_group_formats; i++)
+	      {
+		char ch = C_ifdef_group_formats[i];
+		switch (ch)
+		  {
+		  default:
+		    *b++ = ch;
+		    break;
+
+		  case '@':
+		    b = stpcpy (b, optarg);
+		    break;
+
+		  case '\0':
+		    *b++ = ch;
+		    specify_value (&group_format[changes++], base, "-D");
+		    base = b;
+		    break;
+		  }
+	      }
           }
           break;
 
@@ -435,7 +484,7 @@ main (int argc, char **argv)
 
         case 'l':
           if (!pr_program[0])
-            try_help ("pagination not supported on this host", NULL);
+            try_help ("pagination not supported on this host", nullptr);
           paginate = true;
 #ifdef SIGCHLD
           /* Pagination requires forking and waiting, and
@@ -502,7 +551,7 @@ main (int argc, char **argv)
 
         case 'v':
           version_etc (stdout, PROGRAM_NAME, PACKAGE_NAME, Version,
-                       AUTHORS, (char *) NULL);
+                       AUTHORS, nullptr);
           check_stdout ();
           return EXIT_SUCCESS;
 
@@ -650,12 +699,16 @@ main (int argc, char **argv)
           set_color_palette (optarg);
           break;
 
+        case NO_DIRECTORY_OPTION:
+          no_directory = true;
+          break;
+
         case PRESUME_OUTPUT_TTY_OPTION:
           presume_output_tty = true;
           break;
 
         default:
-          try_help (NULL, NULL);
+          try_help (nullptr, nullptr);
         }
       prev = c;
     }
@@ -686,6 +739,9 @@ main (int argc, char **argv)
       time_format = "%Y-%m-%d %H:%M:%S.%N %z";
 #else
       time_format = "%Y-%m-%d %H:%M:%S %z";
+#endif
+#if !HAVE_TM_GMTOFF
+      localtz = tzalloc (getenv ("TZ"));
 #endif
     }
   else
@@ -750,8 +806,12 @@ main (int argc, char **argv)
       if (!group_format[UNCHANGED])
         group_format[UNCHANGED] = "%=";
       if (!group_format[CHANGED])
-        group_format[CHANGED] = concat (group_format[OLD],
-                                        group_format[NEW], "");
+	{
+	  char *p = xmalloc (strlen (group_format[OLD])
+			     + strlen (group_format[NEW]) + 1);
+	  group_format[CHANGED] = p;
+	  strcpy (stpcpy (p, group_format[OLD]), group_format[NEW]);
+	}
     }
 
   no_diff_means_no_output =
@@ -775,7 +835,7 @@ main (int argc, char **argv)
       else
         for (; optind < argc; optind++)
           {
-            int status = compare_files (NULL, from_file, argv[optind]);
+            int status = compare_files (nullptr, from_file, argv[optind]);
             if (exit_status < status)
               exit_status = status;
           }
@@ -785,7 +845,7 @@ main (int argc, char **argv)
       if (to_file)
         for (; optind < argc; optind++)
           {
-            int status = compare_files (NULL, argv[optind], to_file);
+            int status = compare_files (nullptr, argv[optind], to_file);
             if (exit_status < status)
               exit_status = status;
           }
@@ -799,7 +859,7 @@ main (int argc, char **argv)
                 try_help ("extra operand '%s'", argv[optind + 2]);
             }
 
-          exit_status = compare_files (NULL, argv[optind], argv[optind + 1]);
+          exit_status = compare_files (nullptr, argv[optind], argv[optind + 1]);
         }
     }
 
@@ -807,7 +867,7 @@ main (int argc, char **argv)
   print_message_queue ();
 
   check_stdout ();
-  exit (exit_status);
+  cleanup_signal_handlers ();
   return exit_status;
 }
 
@@ -1032,7 +1092,7 @@ specify_value (char const **var, char const *value, char const *option)
   if (*var && ! STREQ (*var, value))
     {
       error (0, 0, _("conflicting %s option value '%s'"), option, value);
-      try_help (NULL, NULL);
+      try_help (nullptr, nullptr);
     }
   *var = value;
 }
@@ -1044,7 +1104,7 @@ specify_style (enum output_style style)
   if (output_style != style)
     {
       if (output_style != OUTPUT_UNSPECIFIED)
-        try_help ("conflicting output style options", NULL);
+        try_help ("conflicting output style options", nullptr);
       output_style = style;
     }
 }
@@ -1053,7 +1113,7 @@ specify_style (enum output_style style)
 static void
 specify_colors_style (char const *value)
 {
-  if (value == NULL || STREQ (value, "auto"))
+  if (value == nullptr || STREQ (value, "auto"))
     colors_style = AUTO;
   else if (STREQ (value, "always"))
     colors_style = ALWAYS;
@@ -1083,6 +1143,24 @@ set_mtime_to_now (struct stat *st)
 #endif
 }
 
+/* cmp.file[f].desc markers */
+enum { NONEXISTENT = -1 }; /* nonexistent file */
+enum { UNOPENED = -2 }; /* unopened file (e.g. directory) */
+
+/* encoded errno value */
+static int
+errno_encode (int err)
+{
+  return -3 - err;
+}
+
+/* inverse of errno_encode */
+static int
+errno_decode (int desc)
+{
+  return -3 - desc;
+}
+
 /* Compare two files (or dirs) with parent comparison PARENT
    and names NAME0 and NAME1.
    (If PARENT is null, then the first name is just NAME0, etc.)
@@ -1126,13 +1204,6 @@ compare_files (struct comparison const *parent,
   memset (cmp.file, 0, sizeof cmp.file);
   cmp.parent = parent;
 
-  /* cmp.file[f].desc markers */
-#define NONEXISTENT (-1) /* nonexistent file */
-#define UNOPENED (-2) /* unopened file (e.g. directory) */
-#define ERRNO_ENCODE(errno) (-3 - (errno)) /* encoded errno value */
-
-#define ERRNO_DECODE(desc) (-3 - (desc)) /* inverse of ERRNO_ENCODE */
-
   cmp.file[0].desc = name0 ? UNOPENED : NONEXISTENT;
   cmp.file[1].desc = name1 ? UNOPENED : NONEXISTENT;
 
@@ -1145,17 +1216,17 @@ compare_files (struct comparison const *parent,
 
   if (!parent)
     {
-      free0 = NULL;
-      free1 = NULL;
+      free0 = nullptr;
+      free1 = nullptr;
       cmp.file[0].name = name0;
       cmp.file[1].name = name1;
     }
   else
     {
       cmp.file[0].name = free0
-        = file_name_concat (parent->file[0].name, name0, NULL);
+        = file_name_concat (parent->file[0].name, name0, nullptr);
       cmp.file[1].name = free1
-        = file_name_concat (parent->file[1].name, name1, NULL);
+        = file_name_concat (parent->file[1].name, name1, nullptr);
     }
 
   /* Stat the files.  */
@@ -1175,14 +1246,14 @@ compare_files (struct comparison const *parent,
               if (binary && ! isatty (STDIN_FILENO))
                 set_binary_mode (STDIN_FILENO, O_BINARY);
               if (fstat (STDIN_FILENO, &cmp.file[f].stat) != 0)
-                cmp.file[f].desc = ERRNO_ENCODE (errno);
+                cmp.file[f].desc = errno_encode (errno);
               else
                 {
                   if (S_ISREG (cmp.file[f].stat.st_mode))
                     {
                       off_t pos = lseek (STDIN_FILENO, 0, SEEK_CUR);
                       if (pos < 0)
-                        cmp.file[f].desc = ERRNO_ENCODE (errno);
+                        cmp.file[f].desc = errno_encode (errno);
                       else
                         cmp.file[f].stat.st_size =
                           MAX (0, cmp.file[f].stat.st_size - pos);
@@ -1197,7 +1268,7 @@ compare_files (struct comparison const *parent,
                     ? lstat (cmp.file[f].name, &cmp.file[f].stat)
                     : stat (cmp.file[f].name, &cmp.file[f].stat))
                    != 0)
-            cmp.file[f].desc = ERRNO_ENCODE (errno);
+            cmp.file[f].desc = errno_encode (errno);
         }
     }
 
@@ -1212,8 +1283,8 @@ compare_files (struct comparison const *parent,
             ? (S_ISREG (cmp.file[f].stat.st_mode)
                && ! (cmp.file[f].stat.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO))
                && cmp.file[f].stat.st_size == 0)
-            : ((cmp.file[f].desc == ERRNO_ENCODE (ENOENT)
-                || cmp.file[f].desc == ERRNO_ENCODE (EBADF))
+            : ((cmp.file[f].desc == errno_encode (ENOENT)
+                || cmp.file[f].desc == errno_encode (EBADF))
                && ! parent
                && (cmp.file[1 - f].desc == UNOPENED
                    || cmp.file[1 - f].desc == STDIN_FILENO))))
@@ -1228,7 +1299,7 @@ compare_files (struct comparison const *parent,
 
   for (f = 0; f < 2; f++)
     {
-      int e = ERRNO_DECODE (cmp.file[f].desc);
+      int e = errno_decode (cmp.file[f].desc);
       if (0 <= e)
         {
           errno = e;
@@ -1237,7 +1308,8 @@ compare_files (struct comparison const *parent,
         }
     }
 
-  if (status == EXIT_SUCCESS && ! parent && DIR_P (0) != DIR_P (1))
+  if (status == EXIT_SUCCESS && ! parent && !no_directory
+      && DIR_P (0) != DIR_P (1))
     {
       /* If one is a directory, and it was specified in the command line,
          use the file in that dir with the other file's basename.  */
@@ -1321,7 +1393,7 @@ compare_files (struct comparison const *parent,
             {
               char const *dir;
 
-              /* PARENT must be non-NULL here.  */
+              /* PARENT must be non-null here.  */
               assert (parent);
               dir = parent->file[cmp.file[0].desc == NONEXISTENT].name;
 
@@ -1336,11 +1408,11 @@ compare_files (struct comparison const *parent,
           /* We have two files that are not to be compared.  */
 
           /* See POSIX 1003.1-2001 for this format.  */
-          message5 ("File %s is a %s while file %s is a %s\n",
-                    file_label[0] ? file_label[0] : cmp.file[0].name,
-                    file_type (&cmp.file[0].stat),
-                    file_label[1] ? file_label[1] : cmp.file[1].name,
-                    file_type (&cmp.file[1].stat));
+          message ("File %s is a %s while file %s is a %s\n",
+		   file_label[0] ? file_label[0] : cmp.file[0].name,
+		   file_type (&cmp.file[0].stat),
+		   file_label[1] ? file_label[1] : cmp.file[1].name,
+		   file_type (&cmp.file[1].stat));
 
           /* This is a difference.  */
           status = EXIT_FAILURE;
@@ -1356,12 +1428,12 @@ compare_files (struct comparison const *parent,
           && S_ISLNK (cmp.file[1].stat.st_mode))
         {
           /* Compare the values of the symbolic links.  */
-          char *link_value[2] = { NULL, NULL };
+          char *link_value[2] = { nullptr, nullptr };
 
           for (f = 0; f < 2; f++)
             {
               link_value[f] = xreadlink (cmp.file[f].name);
-              if (link_value[f] == NULL)
+              if (link_value[f] == nullptr)
                 {
                   perror_with_name (cmp.file[f].name);
                   status = EXIT_TROUBLE;
@@ -1386,11 +1458,11 @@ compare_files (struct comparison const *parent,
           /* We have two files that are not to be compared, because
              one of them is a symbolic link and the other one is not.  */
 
-          message5 ("File %s is a %s while file %s is a %s\n",
-                    file_label[0] ? file_label[0] : cmp.file[0].name,
-                    file_type (&cmp.file[0].stat),
-                    file_label[1] ? file_label[1] : cmp.file[1].name,
-                    file_type (&cmp.file[1].stat));
+          message ("File %s is a %s while file %s is a %s\n",
+		   file_label[0] ? file_label[0] : cmp.file[0].name,
+		   file_type (&cmp.file[0].stat),
+		   file_label[1] ? file_label[1] : cmp.file[1].name,
+		   file_type (&cmp.file[1].stat));
 
           /* This is a difference.  */
           status = EXIT_FAILURE;

@@ -1,6 +1,6 @@
 /* Concatenate two arbitrary file names.
 
-   Copyright (C) 1996-1997, 2003, 2005, 2007, 2009-2021 Free Software
+   Copyright (C) 1996-1997, 2003, 2005, 2007, 2009-2023 Free Software
    Foundation, Inc.
 
    This file is free software: you can redistribute it and/or modify
@@ -18,10 +18,20 @@
 
 /* Written by Jim Meyering.  */
 
+/* This file uses _GL_ATTRIBUTE_MALLOC, _GL_ATTRIBUTE_RETURNS_NONNULL.  */
+#if !_GL_CONFIG_H_INCLUDED
+ #error "Please include config.h first."
+#endif
+
+#include <stdlib.h>
+
 #if GNULIB_FILENAMECAT
 char *file_name_concat (char const *dir, char const *base,
-                        char **base_in_result);
+                        char **base_in_result)
+  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE
+  _GL_ATTRIBUTE_RETURNS_NONNULL;
 #endif
 
 char *mfile_name_concat (char const *dir, char const *base,
-                         char **base_in_result);
+                         char **base_in_result)
+  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE;
