@@ -1,10 +1,10 @@
 /* Quoting for a system command.
-   Copyright (C) 2001-2021 Free Software Foundation, Inc.
+   Copyright (C) 2001-2023 Free Software Foundation, Inc.
    Written by Bruno Haible <bruno@clisp.org>, 2012.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
+   the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -46,7 +46,12 @@
       is to truncate the entire command line.
  */
 
-#include <stddef.h>
+/* This file uses _GL_ATTRIBUTE_MALLOC, _GL_ATTRIBUTE_RETURNS_NONNULL.  */
+#if !_GL_CONFIG_H_INCLUDED
+ #error "Please include config.h first."
+#endif
+
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -84,13 +89,17 @@ extern char *
 /* Returns the freshly allocated quoted string.  */
 extern char *
        system_quote (enum system_command_interpreter interpreter,
-                     const char *string);
+                     const char *string)
+  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE
+  _GL_ATTRIBUTE_RETURNS_NONNULL;
 
 /* Returns a freshly allocated string containing all argument strings, quoted,
    separated through spaces.  */
 extern char *
        system_quote_argv (enum system_command_interpreter interpreter,
-                          char * const *argv);
+                          char * const *argv)
+  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE
+  _GL_ATTRIBUTE_RETURNS_NONNULL;
 
 #ifdef __cplusplus
 }

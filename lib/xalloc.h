@@ -1,10 +1,10 @@
 /* xalloc.h -- malloc with out-of-memory checking
 
-   Copyright (C) 1990-2000, 2003-2004, 2006-2021 Free Software Foundation, Inc.
+   Copyright (C) 1990-2000, 2003-2004, 2006-2023 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
+   the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -18,18 +18,20 @@
 #ifndef XALLOC_H_
 #define XALLOC_H_
 
+/* This file uses _GL_INLINE_HEADER_BEGIN, _GL_INLINE, _Noreturn,
+   _GL_ATTRIBUTE_ALLOC_SIZE, _GL_ATTRIBUTE_MALLOC,
+   _GL_ATTRIBUTE_RETURNS_NONNULL.  */
+#if !_GL_CONFIG_H_INCLUDED
+ #error "Please include config.h first."
+#endif
+
 #include <stddef.h>
 #include <stdlib.h>
-#include <stdint.h>
 
 #if GNULIB_XALLOC
 # include "idx.h"
-# include "intprops.h"
 #endif
 
-#ifndef _GL_INLINE_HEADER_BEGIN
- #error "Please include config.h first."
-#endif
 _GL_INLINE_HEADER_BEGIN
 #ifndef XALLOC_INLINE
 # define XALLOC_INLINE _GL_INLINE
@@ -60,6 +62,9 @@ void *xmalloc (size_t s)
 void *ximalloc (idx_t s)
   _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE
   _GL_ATTRIBUTE_ALLOC_SIZE ((1)) _GL_ATTRIBUTE_RETURNS_NONNULL;
+void *xinmalloc (idx_t n, idx_t s)
+  _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE
+  _GL_ATTRIBUTE_ALLOC_SIZE ((1, 2)) _GL_ATTRIBUTE_RETURNS_NONNULL;
 void *xzalloc (size_t s)
   _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE
   _GL_ATTRIBUTE_ALLOC_SIZE ((1)) _GL_ATTRIBUTE_RETURNS_NONNULL;
@@ -128,14 +133,9 @@ char *xstrdup (char const *str)
 /* Allocate an array of N objects, each with S bytes of memory,
    dynamically, with error checking.  S must be nonzero.  */
 
-XALLOC_INLINE void *xnmalloc (size_t n, size_t s)
+void *xnmalloc (size_t n, size_t s)
   _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE
   _GL_ATTRIBUTE_ALLOC_SIZE ((1, 2)) _GL_ATTRIBUTE_RETURNS_NONNULL;
-XALLOC_INLINE void *
-xnmalloc (size_t n, size_t s)
-{
-  return xreallocarray (NULL, n, s);
-}
 
 /* FIXME: Deprecate this in favor of xreallocarray?  */
 /* Change the size of an allocated block of memory P to an array of N
@@ -152,14 +152,9 @@ xnrealloc (void *p, size_t n, size_t s)
 /* Return a pointer to a new buffer of N bytes.  This is like xmalloc,
    except it returns char *.  */
 
-XALLOC_INLINE char *xcharalloc (size_t n)
+char *xcharalloc (size_t n)
   _GL_ATTRIBUTE_MALLOC _GL_ATTRIBUTE_DEALLOC_FREE
   _GL_ATTRIBUTE_ALLOC_SIZE ((1)) _GL_ATTRIBUTE_RETURNS_NONNULL;
-XALLOC_INLINE char *
-xcharalloc (size_t n)
-{
-  return XNMALLOC (n, char);
-}
 
 #endif /* GNULIB_XALLOC */
 

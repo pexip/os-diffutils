@@ -1,6 +1,6 @@
 /* #ifdef-format output routines for GNU DIFF.
 
-   Copyright (C) 1989, 1991-1994, 2001-2002, 2004, 2006, 2009-2013, 2015-2021
+   Copyright (C) 1989, 1991-1994, 2001-2002, 2004, 2006, 2009-2013, 2015-2023
    Free Software Foundation, Inc.
 
    This file is part of GNU DIFF.
@@ -329,7 +329,7 @@ do_printf_spec (FILE *out, char const *spec,
         return 0;
       else
         {
-          char value IF_LINT (= 0);
+          char value;
           f = scan_char_literal (f, &value);
           if (!f)
             return 0;
@@ -359,16 +359,14 @@ do_printf_spec (FILE *out, char const *spec,
           {
             /* For example, if the spec is "%3xn" and pI is "l", use the printf
                format spec "%3lx".  Here the spec prefix is "%3".  */
-            printint print_value = value;
             size_t spec_prefix_len = f - spec - 2;
             size_t pI_len = sizeof pI - 1;
             char *format = xmalloca (spec_prefix_len + pI_len + 2);
-            char *p = format + spec_prefix_len + pI_len;
-            memcpy (format, spec, spec_prefix_len);
-            memcpy (format + spec_prefix_len, pI, pI_len);
+            char *p = mempcpy (format, spec, spec_prefix_len);
+            p = stpcpy (p, pI);
             *p++ = c;
             *p = '\0';
-            fprintf (out, format, print_value);
+            fprintf (out, format, value);
             freea (format);
           }
       }
@@ -397,7 +395,7 @@ scan_char_literal (char const *lit, char *valptr)
     {
       case 0:
       case '\'':
-        return NULL;
+        return nullptr;
 
       case '\\':
         value = 0;
@@ -405,18 +403,18 @@ scan_char_literal (char const *lit, char *valptr)
           {
             unsigned int digit = c - '0';
             if (8 <= digit)
-              return NULL;
+              return nullptr;
             value = 8 * value + digit;
           }
         digits = p - lit - 2;
         if (! (1 <= digits && digits <= 3))
-          return NULL;
+          return nullptr;
         break;
 
       default:
         value = c;
         if (*p++ != '\'')
-          return NULL;
+          return nullptr;
         break;
     }
 

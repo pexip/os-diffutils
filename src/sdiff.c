@@ -1,7 +1,7 @@
 /* GNU sdiff - side-by-side merge of file differences
 
    Copyright (C) 1992-1996, 1998, 2001-2002, 2004, 2006-2007, 2009-2013,
-   2015-2021 Free Software Foundation, Inc.
+   2015-2023 Free Software Foundation, Inc.
 
    This file is part of GNU DIFF.
 
@@ -38,13 +38,13 @@
 #include <xstdopen.h>
 
 /* The official name of this program (e.g., no 'g' prefix).  */
-#define PROGRAM_NAME "sdiff"
+static char const PROGRAM_NAME[] = "sdiff";
 
 #define AUTHORS \
   proper_name ("Thomas Lord")
 
 /* Size of chunks read from files which must be parsed into lines.  */
-#define SDIFF_BUFSIZE ((size_t) 65536)
+enum { SDIFF_BUFSIZE = 65536 };
 
 static char const *editor_program = DEFAULT_EDITOR_PROGRAM;
 static char const **diffargv;
@@ -63,8 +63,8 @@ static bool edit (struct line_filter *, char const *, lin, lin, struct line_filt
 static bool interact (struct line_filter *, struct line_filter *, char const *, struct line_filter *, char const *, FILE *);
 static void checksigs (void);
 static void diffarg (char const *);
-static void fatal (char const *) __attribute__((noreturn));
-static void perror_fatal (char const *) __attribute__((noreturn));
+static _Noreturn void fatal (char const *);
+static _Noreturn void perror_fatal (char const *);
 static void trapsigs (void);
 static void untrapsig (int);
 
@@ -151,8 +151,7 @@ static struct option const longopts[] =
   {0, 0, 0, 0}
 };
 
-static void try_help (char const *, char const *) __attribute__((noreturn));
-static void
+static _Noreturn void
 try_help (char const *reason_msgid, char const *operand)
 {
   if (reason_msgid)
@@ -225,7 +224,7 @@ Mandatory arguments to long options are mandatory for short options too.\n\
 /* Clean up after a signal or other failure.  This function is
    async-signal-safe.  */
 static void
-cleanup (int signo __attribute__((unused)))
+cleanup (_GL_UNUSED int signo)
 {
 #if HAVE_WORKING_FORK
   if (0 < diffpid)
@@ -235,8 +234,7 @@ cleanup (int signo __attribute__((unused)))
     unlink (tmpname);
 }
 
-static void exiterr (void) __attribute__((noreturn));
-static void
+static _Noreturn void
 exiterr (void)
 {
   cleanup (0);
@@ -337,10 +335,10 @@ expand_name (char *name, bool is_dir, char const *other_name)
       size_t namelen = strlen (name), baselen = base_len (base);
       bool insert_slash = *last_component (name) && name[namelen - 1] != '/';
       char *r = xmalloc (namelen + insert_slash + baselen + 1);
-      memcpy (r, name, namelen);
-      r[namelen] = '/';
-      memcpy (r + namelen + insert_slash, base, baselen);
-      r[namelen + insert_slash + baselen] = '\0';
+      char *p = stpcpy (r, name);
+      *p = '/';
+      p = mempcpy (p + insert_slash, base, baselen);
+      *p = '\0';
       return r;
     }
 }
@@ -429,17 +427,16 @@ lf_snarf (struct line_filter *lf, char *buffer, size_t bufsize)
       size_t s = next - start;
       if (bufsize <= s)
         return 0;
-      memcpy (buffer, start, s);
+      buffer = mempcpy (buffer, start, s);
+      bufsize -= s;
       if (next < lf->buflim)
         {
-          buffer[s] = 0;
+          *buffer = 0;
           lf->bufpos = next + 1;
           return 1;
         }
       if (! lf_refill (lf))
         return s ? 0 : EOF;
-      buffer += s;
-      bufsize -= s;
     }
 }
 
@@ -521,7 +518,7 @@ main (int argc, char *argv[])
 
         case 'v':
           version_etc (stdout, PROGRAM_NAME, PACKAGE_NAME, Version,
-                       AUTHORS, (char *) NULL);
+                       AUTHORS, nullptr);
           check_stdout ();
           return EXIT_SUCCESS;
 
@@ -866,8 +863,8 @@ edit (struct line_filter *left, char const *lname, lin lline, lin llen,
 {
   for (;;)
     {
-      int cmd0 IF_LINT (= 0);
-      int cmd1 IF_LINT (= 0);
+      int cmd0;
+      int cmd1 IF_LINT (= 0);  /* IF_LINT due to GCC bug 101770.  */
       bool gotcmd = false;
 
       while (! gotcmd)
@@ -968,14 +965,13 @@ edit (struct line_filter *left, char const *lname, lin lline, lin llen,
               {
               case 'd':
                 if (llen)
-                  {
-                    printint l1 = lline;
-                    printint l2 = lline + llen - 1;
-                    if (llen == 1)
-                      fprintf (tmp, "--- %s %"pI"d\n", lname, l1);
-                    else
-                      fprintf (tmp, "--- %s %"pI"d,%"pI"d\n", lname, l1, l2);
-                  }
+		  {
+		    if (llen == 1)
+		      fprintf (tmp, "--- %s %"pI"d\n", lname, lline);
+		    else
+		      fprintf (tmp, "--- %s %"pI"d,%"pI"d\n", lname, lline,
+			       lline + llen - 1);
+		  }
                 FALLTHROUGH;
               case '1': case 'b': case 'l':
                 lf_copy (left, llen, tmp);
@@ -990,14 +986,13 @@ edit (struct line_filter *left, char const *lname, lin lline, lin llen,
               {
               case 'd':
                 if (rlen)
-                  {
-                    printint l1 = rline;
-                    printint l2 = rline + rlen - 1;
-                    if (rlen == 1)
-                      fprintf (tmp, "+++ %s %"pI"d\n", rname, l1);
-                    else
-                      fprintf (tmp, "+++ %s %"pI"d,%"pI"d\n", rname, l1, l2);
-                  }
+		  {
+		    if (rlen == 1)
+		      fprintf (tmp, "+++ %s %"pI"d\n", rname, rline);
+		    else
+		      fprintf (tmp, "+++ %s %"pI"d,%"pI"d\n", rname, rline,
+			     rline + rlen - 1);
+		  }
                 FALLTHROUGH;
               case '2': case 'b': case 'r':
                 lf_copy (right, rlen, tmp);
@@ -1166,10 +1161,11 @@ temporary_file (void)
   char const *tmpdir = getenv (TMPDIR_ENV);
   char const *dir = tmpdir ? tmpdir : P_tmpdir;
   char *buf = xmalloc (strlen (dir) + 1 + 5 + 6 + 1);
-  int fd;
-  sprintf (buf, "%s/sdiffXXXXXX", dir);
-  fd = mkstemp (buf);
-  if (0 <= fd)
+  strcpy (stpcpy (buf, dir), "/sdiffXXXXXX");
+  int fd = mkstemp (buf);
+  if (fd < 0)
+    free (buf);
+  else
     tmpname = buf;
   return fd;
 }

@@ -1,11 +1,11 @@
 #!/bin/sh
 # Test suite for update-copyright.
-# Copyright (C) 2009-2021 Free Software Foundation, Inc.
+# Copyright (C) 2009-2023 Free Software Foundation, Inc.
 # This file is part of the GNUlib Library.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
+# the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
@@ -28,7 +28,7 @@ PATH=$abs_aux_dir:$PATH
 export PATH
 
 TMP_BASE=update-copyright.test
-trap 'rm -f $TMP_BASE*' 0 1 2 3 15
+trap 'rm -f $TMP_BASE*' EXIT HUP INT QUIT TERM
 
 ## --------------------------------- ##
 ## Skip if user does not have perl.  ##
@@ -68,7 +68,7 @@ echo a > $TMP-in
 # Skip this test if Perl is too old.  FIXME: 5.8.0 is just a guess.
 # We have a report that 5.6.1 is inadequate and that 5.8.0 works.
 perl -e 'require 5.8.0' || {
-  echo '$0: skipping this test; Perl version is too old' 1>&2
+  echo "$0: skipping this test; Perl version is too old" 1>&2
   exit 77
 }
 
@@ -115,6 +115,10 @@ Copyright (C) 1990-2005, 2007-2009 Acme, Inc.
 # Copyright (C) 1990-2005, 2007-2009 Free Software
 # Foundation, Inc.
 EOF
+cat > $TMP.8 <<EOF
+Copyright (C) 2008 Free Software Foundation, Inc.
+Copyright (C) 2008 Free Software Foundation, Inc.
+EOF
 
 UPDATE_COPYRIGHT_YEAR=2009 \
   update-copyright $TMP.? 1> $TMP-stdout 2> $TMP-stderr
@@ -156,6 +160,10 @@ Copyright (C) 1990-2005, 2007-2009 Acme, Inc.
 
 # Copyright (C) 1990-2005, 2007-2009 Free Software
 # Foundation, Inc.
+EOF
+compare - $TMP.8 <<EOF || exit 1
+Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+Copyright (C) 2008, 2009 Free Software Foundation, Inc.
 EOF
 
 UPDATE_COPYRIGHT_YEAR=2010 UPDATE_COPYRIGHT_USE_INTERVALS=1 \

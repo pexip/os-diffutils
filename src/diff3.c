@@ -1,7 +1,7 @@
 /* GNU diff3 - compare three files line by line
 
    Copyright (C) 1988-1989, 1992-1996, 1998, 2001-2002, 2004, 2006, 2009-2013,
-   2015-2021 Free Software Foundation, Inc.
+   2015-2023 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,14 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+/* As of GCC 11.2.1, gcc -Wanalyzer-too-complex reports that this
+   program's code is too complicated for gcc -fanalyzer.
+   FIXME: Compile with -DANALYZER_NULL_DEFERENCE and see whether the
+   resulting diagnostics are false alarms.  */
+#if 10 <= __GNUC__ && !ANALYZER_NULL_DEREFERENCE
+# pragma GCC diagnostic ignored "-Wanalyzer-null-dereference"
+#endif
+
 #include "system.h"
 #include "paths.h"
 
@@ -37,7 +45,7 @@
 #include <xstdopen.h>
 
 /* The official name of this program (e.g., no 'g' prefix).  */
-#define PROGRAM_NAME "diff3"
+static char const PROGRAM_NAME[] = "diff3";
 
 #define AUTHORS \
   proper_name ("Randy Smith")
@@ -46,28 +54,24 @@
    data structures for both diff3 diffs and normal diffs.  */
 
 /* Different files within a three way diff.  */
-#define	FILE0	0
-#define	FILE1	1
-#define	FILE2	2
+enum { FILE0, FILE1, FILE2 };
 
 /* A three way diff is built from two two-way diffs; the file which
    the two two-way diffs share is:  */
-#define	FILEC	FILE2
+enum { FILEC = FILE2 };
 
 /* Different files within a two way diff.
    FC is the common file, FO the other file.  */
-#define FO 0
-#define FC 1
+enum { FO, FC };
 
 /* The ranges are indexed by */
-#define	RANGE_START	0
-#define	RANGE_END	1
+enum { RANGE_START, RANGE_END };
 
 enum diff_type {
-  ERROR,			/* Should not be used */
-  ADD,				/* Two way diff add */
-  CHANGE,			/* Two way diff change */
-  DELETE,			/* Two way diff delete */
+  DIFF_ERROR,			/* Should not be used */
+  DIFF_ADD,			/* Two way diff add */
+  DIFF_CHANGE,			/* Two way diff change */
+  DIFF_DELETE,			/* Two way diff delete */
   DIFF_ALL,			/* All three are different */
   DIFF_1ST,			/* Only the first is different */
   DIFF_2ND,			/* Only the second */
@@ -80,7 +84,7 @@ struct diff_block {
   char **lines[2];		/* The actual lines (may contain nulls) */
   size_t *lengths[2];		/* Line lengths (including newlines, if any) */
   struct diff_block *next;
-#ifdef lint
+#ifdef GCC_LINT
   struct diff_block *n2;	/* Used only when freeing.  */
 #endif
 };
@@ -95,7 +99,11 @@ struct diff3_block {
   struct diff3_block *next;
 };
 
-/* Access the ranges on a diff block.  */
+/* The following are macros, not functions, as they may be used as
+   lvalues, or they may be polymorphic in that they work with either
+   diff or diff3 blocks.  */
+
+/* Access the ranges on a diff or diff3 block.  */
 #define	D_LOWLINE(diff, filenum)	\
   ((diff)->ranges[filenum][RANGE_START])
 #define	D_HIGHLINE(diff, filenum)	\
@@ -103,7 +111,7 @@ struct diff3_block {
 #define	D_NUMLINES(diff, filenum)	\
   (D_HIGHLINE (diff, filenum) - D_LOWLINE (diff, filenum) + 1)
 
-/* Access the line numbers in a file in a diff by relative line
+/* Access the line numbers in a file in a diff or diff3 block by relative line
    numbers (i.e. line number within the diff itself).  Note that these
    are lvalues and can be used for assignment.  */
 #define	D_RELNUM(diff, filenum, linenum)	\
@@ -117,23 +125,23 @@ struct diff3_block {
 #define	D_LENARRAY(diff, filenum)	\
   ((diff)->lengths[filenum])
 
-/* Next block.  */
+/* Next diff or diff3 block.  */
 #define	D_NEXT(diff)	((diff)->next)
 
 /* Access the type of a diff3 block.  */
 #define	D3_TYPE(diff)	((diff)->correspond)
 
-/* Line mappings based on diffs.  The first maps off the top of the
-   diff, the second off of the bottom.  */
+/* Line mappings based on diff or diff3 blocks.  The first maps off
+   the top of the diff, the second off of the bottom.  */
 #define	D_HIGH_MAPLINE(diff, fromfile, tofile, linenum)	\
   ((linenum)						\
-   - D_HIGHLINE ((diff), (fromfile))			\
-   + D_HIGHLINE ((diff), (tofile)))
+   - D_HIGHLINE (diff, fromfile)			\
+   + D_HIGHLINE (diff, tofile))
 
 #define	D_LOW_MAPLINE(diff, fromfile, tofile, linenum)	\
   ((linenum)						\
-   - D_LOWLINE ((diff), (fromfile))			\
-   + D_LOWLINE ((diff), (tofile)))
+   - D_LOWLINE (diff, fromfile)				\
+   + D_LOWLINE (diff, tofile))
 
 /* Options variables for flags set on command line.  */
 
@@ -181,12 +189,12 @@ static struct diff3_block *create_diff3_block (lin, lin, lin, lin, lin, lin);
 static struct diff3_block *make_3way_diff (struct diff_block *, struct diff_block *);
 static struct diff3_block *reverse_diff3_blocklist (struct diff3_block *);
 static struct diff3_block *using_to_diff3_block (struct diff_block *[2], struct diff_block *[2], int, int, struct diff3_block const *);
-static struct diff_block *process_diff (char const *, char const *, struct diff_block **, char **);
+static struct diff_block *process_diff (char const *, char const *, char **);
 static void check_stdout (void);
-static void fatal (char const *) __attribute__((noreturn));
+static _Noreturn void fatal (char const *);
 static void output_diff3 (FILE *, struct diff3_block *, int const[3], int const[3]);
-static void perror_with_exit (char const *) __attribute__((noreturn));
-static void try_help (char const *, char const *) __attribute__((noreturn));
+static _Noreturn void perror_with_exit (char const *);
+static _Noreturn void try_help (char const *, char const *);
 static void usage (void);
 
 static char const *diff_program = DEFAULT_DIFF_PROGRAM;
@@ -220,7 +228,7 @@ static struct option const longopts[] =
 static void
 free_diff_block (struct diff_block *p)
 {
-#ifndef lint
+#ifndef GCC_LINT
   (void)p;
 #else
   while (p)
@@ -241,7 +249,7 @@ free_diff_block (struct diff_block *p)
 static void
 next_to_n2 (struct diff_block *p)
 {
-#ifndef lint
+#ifndef GCC_LINT
   (void)p;
 #else
   while (p)
@@ -259,13 +267,12 @@ main (int argc, char **argv)
   int incompat = 0;
   enum { OPTION_3, OPTION_A, OPTION_E, OPTION_X, OPTION_e, OPTION_x };
   bool conflicts_found;
-  struct diff_block *thread0, *thread1, *last_block;
+  struct diff_block *thread0, *thread1;
   struct diff3_block *diff3;
   int tag_count = 0;
   char *tag_strings[3];
   char *commonname;
   char **file;
-  struct stat statb;
 
   exit_failure = EXIT_TROUBLE;
   initialize_main (&argc, &argv);
@@ -321,7 +328,7 @@ main (int argc, char **argv)
           break;
         case 'v':
           version_etc (stdout, PROGRAM_NAME, PACKAGE_NAME, Version,
-                       AUTHORS, (char *) NULL);
+                       AUTHORS, nullptr);
           check_stdout ();
           return EXIT_SUCCESS;
         case DIFF_PROGRAM_OPTION:
@@ -403,15 +410,6 @@ main (int argc, char **argv)
   for (i = 0; i < 3; i++)
     rev_mapping[mapping[i]] = i;
 
-  for (i = 0; i < 3; i++)
-    if (! STREQ (file[i], "-"))
-      {
-        if (stat (file[i], &statb) < 0)
-          perror_with_exit (file[i]);
-        else if (S_ISDIR (statb.st_mode))
-          die (EXIT_TROUBLE, EISDIR, "%s", file[i]);
-      }
-
 #ifdef SIGCHLD
   /* System V fork+wait does not work if SIGCHLD is ignored.  */
   signal (SIGCHLD, SIG_DFL);
@@ -422,8 +420,8 @@ main (int argc, char **argv)
 
   char *b0, *b1;
   commonname = file[rev_mapping[FILEC]];
-  thread1 = process_diff (file[rev_mapping[FILE1]], commonname, &last_block, &b1);
-  thread0 = process_diff (file[rev_mapping[FILE0]], commonname, &last_block, &b0);
+  thread1 = process_diff (file[rev_mapping[FILE1]], commonname, &b1);
+  thread0 = process_diff (file[rev_mapping[FILE0]], commonname, &b0);
 
   next_to_n2 (thread0);
   next_to_n2 (thread1);
@@ -914,7 +912,7 @@ create_diff3_block (lin low0, lin high0,
   struct diff3_block *result = xmalloc (sizeof *result);
   lin numlines;
 
-  D3_TYPE (result) = ERROR;
+  D3_TYPE (result) = DIFF_ERROR;
   D_NEXT (result) = 0;
 
   /* Assign ranges */
@@ -991,7 +989,6 @@ compare_line_list (char * const list1[], size_t const lengths1[],
 static struct diff_block *
 process_diff (char const *filea,
               char const *fileb,
-              struct diff_block **last_block,
               char **buf_to_free)
 {
   char *diff_contents;
@@ -1001,10 +998,6 @@ process_diff (char const *filea,
   lin i;
   struct diff_block *block_list;
   struct diff_block **block_list_end = &block_list;
-  struct diff_block *bptr IF_LINT (= NULL);
-  size_t too_many_lines = (PTRDIFF_MAX
-                           / MIN (sizeof *bptr->lines[1],
-                                  sizeof *bptr->lengths[1]));
 
   diff_limit = read_diff (filea, fileb, &diff_contents);
   *buf_to_free = diff_contents;
@@ -1012,12 +1005,12 @@ process_diff (char const *filea,
 
   while (scan_diff < diff_limit)
     {
-      bptr = xmalloc (sizeof *bptr);
+      struct diff_block *bptr = xmalloc (sizeof *bptr);
       bptr->lines[0] = bptr->lines[1] = 0;
       bptr->lengths[0] = bptr->lengths[1] = 0;
 
       dt = process_diff_control (&scan_diff, bptr);
-      if (dt == ERROR || *scan_diff != '\n')
+      if (dt == DIFF_ERROR || *scan_diff != '\n')
         {
           fprintf (stderr, _("%s: diff failed: "), program_name);
           do
@@ -1032,13 +1025,13 @@ process_diff (char const *filea,
       /* Force appropriate ranges to be null, if necessary */
       switch (dt)
         {
-        case ADD:
+        case DIFF_ADD:
           bptr->ranges[0][0]++;
           break;
-        case DELETE:
+        case DIFF_DELETE:
           bptr->ranges[1][0]++;
           break;
-        case CHANGE:
+        case DIFF_CHANGE:
           break;
         default:
           fatal ("internal error: invalid diff type in process_diff");
@@ -1047,13 +1040,11 @@ process_diff (char const *filea,
 
       /* Allocate space for the pointers for the lines from filea, and
          parcel them out among these pointers */
-      if (dt != ADD)
+      if (dt != DIFF_ADD)
         {
           lin numlines = D_NUMLINES (bptr, 0);
-          if (too_many_lines <= numlines)
-            xalloc_die ();
-          bptr->lines[0] = xmalloc (numlines * sizeof *bptr->lines[0]);
-          bptr->lengths[0] = xmalloc (numlines * sizeof *bptr->lengths[0]);
+          bptr->lines[0] = xnmalloc (numlines, sizeof *bptr->lines[0]);
+          bptr->lengths[0] = xnmalloc (numlines, sizeof *bptr->lengths[0]);
           for (i = 0; i < numlines; i++)
             scan_diff = scan_diff_line (scan_diff,
                                         &(bptr->lines[0][i]),
@@ -1063,7 +1054,7 @@ process_diff (char const *filea,
         }
 
       /* Get past the separator for changes */
-      if (dt == CHANGE)
+      if (dt == DIFF_CHANGE)
         {
           if (strncmp (scan_diff, "---\n", 4))
             fatal ("invalid diff format; invalid change separator");
@@ -1072,13 +1063,11 @@ process_diff (char const *filea,
 
       /* Allocate space for the pointers for the lines from fileb, and
          parcel them out among these pointers */
-      if (dt != DELETE)
+      if (dt != DIFF_DELETE)
         {
           lin numlines = D_NUMLINES (bptr, 1);
-          if (too_many_lines <= numlines)
-            xalloc_die ();
-          bptr->lines[1] = xmalloc (numlines * sizeof *bptr->lines[1]);
-          bptr->lengths[1] = xmalloc (numlines * sizeof *bptr->lengths[1]);
+          bptr->lines[1] = xnmalloc (numlines, sizeof *bptr->lines[1]);
+          bptr->lengths[1] = xnmalloc (numlines, sizeof *bptr->lengths[1]);
           for (i = 0; i < numlines; i++)
             scan_diff = scan_diff_line (scan_diff,
                                         &(bptr->lines[1][i]),
@@ -1092,14 +1081,13 @@ process_diff (char const *filea,
       block_list_end = &bptr->next;
     }
 
-  *block_list_end = NULL;
-  *last_block = bptr;
+  *block_list_end = nullptr;
   return block_list;
 }
 
 /* Skip tabs and spaces, and return the first character after them.  */
 
-static char * _GL_ATTRIBUTE_PURE
+static char * ATTRIBUTE_PURE
 skipwhite (char *s)
 {
   while (*s == ' ' || *s == '\t')
@@ -1132,7 +1120,7 @@ readnum (char *s, lin *pnum)
 }
 
 /* Parse a normal format diff control string.  Return the type of the
-   diff (ERROR if the format is bad).  All of the other important
+   diff (DIFF_ERROR if the format is bad).  All of the other important
    information is filled into to the structure pointed to by db, and
    the string pointer (whose location is passed to this routine) is
    updated to point beyond the end of the string parsed.  Note that
@@ -1141,8 +1129,8 @@ readnum (char *s, lin *pnum)
    If some specific pair of numbers has been reduced to a single
    number, then both corresponding numbers in the diff block are set
    to that number.  In general these numbers are interpreted as ranges
-   inclusive, unless being used by the ADD or DELETE commands.  It is
-   assumed that these will be special cased in a superior routine.   */
+   inclusive, unless being used by the DIFF_ADD or DIFF_DELETE commands.
+   It is assumed that these will be special cased in a superior routine.  */
 
 static enum diff_type
 process_diff_control (char **string, struct diff_block *db)
@@ -1153,7 +1141,7 @@ process_diff_control (char **string, struct diff_block *db)
   /* Read first set of digits */
   s = readnum (skipwhite (s), &db->ranges[0][RANGE_START]);
   if (! s)
-    return ERROR;
+    return DIFF_ERROR;
 
   /* Was that the only digit? */
   s = skipwhite (s);
@@ -1161,7 +1149,7 @@ process_diff_control (char **string, struct diff_block *db)
     {
       s = readnum (s + 1, &db->ranges[0][RANGE_END]);
       if (! s)
-        return ERROR;
+        return DIFF_ERROR;
     }
   else
     db->ranges[0][RANGE_END] = db->ranges[0][RANGE_START];
@@ -1171,23 +1159,23 @@ process_diff_control (char **string, struct diff_block *db)
   switch (*s)
     {
     case 'a':
-      type = ADD;
+      type = DIFF_ADD;
       break;
     case 'c':
-      type = CHANGE;
+      type = DIFF_CHANGE;
       break;
     case 'd':
-      type = DELETE;
+      type = DIFF_DELETE;
       break;
     default:
-      return ERROR;			/* Bad format */
+      return DIFF_ERROR;	/* Bad format */
     }
   s++;				/* Past letter */
 
   /* Read second set of digits */
   s = readnum (skipwhite (s), &db->ranges[1][RANGE_START]);
   if (! s)
-    return ERROR;
+    return DIFF_ERROR;
 
   /* Was that the only digit? */
   s = skipwhite (s);
@@ -1195,7 +1183,7 @@ process_diff_control (char **string, struct diff_block *db)
     {
       s = readnum (s + 1, &db->ranges[1][RANGE_END]);
       if (! s)
-        return ERROR;
+        return DIFF_ERROR;
       s = skipwhite (s);		/* To move to end */
     }
   else
@@ -1215,7 +1203,7 @@ read_diff (char const *filea,
   int fd, wstatus, status;
   int werrno = 0;
   struct stat pipestat;
-  char const *argv[9];
+  char const *argv[10];
   char const **ap;
 #if HAVE_WORKING_FORK
   int fds[2];
@@ -1232,6 +1220,7 @@ read_diff (char const *filea,
   if (strip_trailing_cr)
     *ap++ = "--strip-trailing-cr";
   *ap++ = "--horizon-lines=100";
+  *ap++ = "---no-directory";
   *ap++ = "--";
   *ap++ = filea;
   *ap++ = fileb;
@@ -1278,9 +1267,9 @@ read_diff (char const *filea,
 
 #endif
 
-  if (fstat (fd, &pipestat) != 0)
-    perror_with_exit ("fstat");
-  current_chunk_size = MAX (1, STAT_BLOCKSIZE (pipestat));
+  current_chunk_size = (fstat (fd, &pipestat) == 0
+                        ? MAX (1, STAT_BLOCKSIZE (pipestat))
+                        : 8 * 1024);
   diff_result = xmalloc (current_chunk_size);
   total = 0;
 
@@ -1435,20 +1424,18 @@ output_diff3 (FILE *outputfile, struct diff3_block *diff,
           int realfile = mapping[i];
           lin lowt = D_LOWLINE (ptr, realfile);
           lin hight = D_HIGHLINE (ptr, realfile);
-          printint llowt = lowt;
-          printint lhight = hight;
 
           fprintf (outputfile, "%d:", i + 1);
           switch (lowt - hight)
             {
             case 1:
-              fprintf (outputfile, "%"pI"da\n", llowt - 1);
+              fprintf (outputfile, "%"pI"da\n", lowt - 1);
               break;
             case 0:
-              fprintf (outputfile, "%"pI"dc\n", llowt);
+              fprintf (outputfile, "%"pI"dc\n", lowt);
               break;
             default:
-              fprintf (outputfile, "%"pI"d,%"pI"dc\n", llowt, lhight);
+              fprintf (outputfile, "%"pI"d,%"pI"dc\n", lowt, hight);
               break;
             }
 
@@ -1505,7 +1492,7 @@ dotlines (FILE *outputfile, struct diff3_block *b, int filenum)
    and continuing for NUM lines.  */
 
 static void
-undotlines (FILE *outputfile, bool leading_dot, printint start, printint num)
+undotlines (FILE *outputfile, bool leading_dot, lin start, lin num)
 {
   fputs (".\n", outputfile);
   if (leading_dot)
@@ -1554,8 +1541,6 @@ output_diff3_edscript (FILE *outputfile, struct diff3_block *diff,
            ? DIFF_ALL
            : DIFF_1ST + rev_mapping[b->correspond - DIFF_1ST]);
 
-      printint low0, high0;
-
       /* If we aren't supposed to do this output block, skip it.  */
       switch (type)
         {
@@ -1565,8 +1550,8 @@ output_diff3_edscript (FILE *outputfile, struct diff3_block *diff,
         case DIFF_ALL: if (simple_only) continue; conflict = flagging; break;
         }
 
-      low0 = D_LOWLINE (b, mapping[FILE0]);
-      high0 = D_HIGHLINE (b, mapping[FILE0]);
+      lin low0 = D_LOWLINE (b, mapping[FILE0]);
+      lin high0 = D_HIGHLINE (b, mapping[FILE0]);
 
       if (conflict)
         {

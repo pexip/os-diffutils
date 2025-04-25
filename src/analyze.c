@@ -1,7 +1,7 @@
 /* Analyze file differences for GNU DIFF.
 
    Copyright (C) 1988-1989, 1992-1995, 1998, 2001-2002, 2004, 2006-2007,
-   2009-2013, 2015-2021 Free Software Foundation, Inc.
+   2009-2013, 2015-2023 Free Software Foundation, Inc.
 
    This file is part of GNU DIFF.
 
@@ -28,6 +28,7 @@
 #define ELEMENT lin
 #define EQUAL(x,y) ((x) == (y))
 #define OFFSET lin
+#define OFFSET_MAX LIN_MAX
 #define EXTRA_CONTEXT_FIELDS /* none */
 #define NOTE_DELETE(c, xoff) (files[0].changed[files[0].realindexes[xoff]] = 1)
 #define NOTE_INSERT(c, yoff) (files[1].changed[files[1].realindexes[yoff]] = 1)
@@ -67,7 +68,7 @@ discard_confusing_lines (struct file_data filevec[])
   /* Set up equiv_count[F][I] as the number of lines in file F
      that fall in equivalence class I.  */
 
-  p = zalloc (filevec[0].equiv_max * (2 * sizeof *p));
+  p = xcalloc (filevec[0].equiv_max, 2 * sizeof *p);
   equiv_count[0] = p;
   equiv_count[1] = p + filevec[0].equiv_max;
 
@@ -78,8 +79,8 @@ discard_confusing_lines (struct file_data filevec[])
 
   /* Set up tables of which lines are going to be discarded.  */
 
-  discarded[0] = zalloc (filevec[0].buffered_lines
-                         + filevec[1].buffered_lines);
+  discarded[0] = xzalloc (filevec[0].buffered_lines
+			  + filevec[1].buffered_lines);
   discarded[1] = discarded[0] + filevec[0].buffered_lines;
 
   /* Mark to be discarded each line that matches no line of the other file.
@@ -451,8 +452,8 @@ briefly_report (int changes, struct file_data const filevec[])
 {
   if (changes)
     message ((brief
-              ? _("Files %s and %s differ\n")
-              : _("Binary files %s and %s differ\n")),
+              ? N_("Files %s and %s differ\n")
+              : N_("Binary files %s and %s differ\n")),
              file_label[0] ? file_label[0] : filevec[0].name,
              file_label[1] ? file_label[1] : filevec[1].name);
 }
@@ -542,7 +543,7 @@ diff_2_files (struct comparison *cmp)
          Allocate an extra element, always 0, at each end of each vector.  */
 
       size_t s = cmp->file[0].buffered_lines + cmp->file[1].buffered_lines + 4;
-      char *flag_space = zalloc (s);
+      char *flag_space = xzalloc (s);
       cmp->file[0].changed = flag_space + 1;
       cmp->file[1].changed = flag_space + cmp->file[0].buffered_lines + 3;
 
@@ -697,7 +698,7 @@ diff_2_files (struct comparison *cmp)
           free (e);
         }
 
-      if (! ROBUST_OUTPUT_STYLE (output_style))
+      if (! robust_output_style (output_style))
         for (f = 0; f < 2; ++f)
           if (cmp->file[f].missing_newline)
             {

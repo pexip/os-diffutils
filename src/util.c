@@ -1,7 +1,7 @@
 /* Support routines for GNU DIFF.
 
    Copyright (C) 1988-1989, 1992-1995, 1998, 2001-2002, 2004, 2006, 2009-2013,
-   2015-2021 Free Software Foundation, Inc.
+   2015-2023 Free Software Foundation, Inc.
 
    This file is part of GNU DIFF.
 
@@ -19,23 +19,25 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "diff.h"
-#include "argmatch.h"
-#include "die.h"
+
+#include <argmatch.h>
+#include <die.h>
 #include <dirname.h>
 #include <error.h>
+#include <flexmember.h>
 #include <system-quote.h>
 #include <xalloc.h>
-#include "xvasprintf.h"
+
+#include <stdarg.h>
 #include <signal.h>
 
 /* Use SA_NOCLDSTOP as a proxy for whether the sigaction machinery is
    present.  */
 #ifndef SA_NOCLDSTOP
 # define SA_NOCLDSTOP 0
-# define sigprocmask(How, Set, Oset) /* empty */
-# define sigset_t int
+# define sigprocmask(How, Set, Oset) 0
 # if ! HAVE_SIGINTERRUPT
-#  define siginterrupt(sig, flag) /* empty */
+#  define siginterrupt(sig, flag) 0
 # endif
 #endif
 
@@ -51,7 +53,15 @@ char const pr_program[] = PR_PROGRAM;
 struct msg
 {
   struct msg *next;
-  char args[1]; /* Format + 4 args, each '\0' terminated, concatenated.  */
+
+  /* Msgid of printf-style format.  */
+  char const *msgid;
+
+  /* Number of bytes in ARGS.  */
+  size_t argbytes;
+
+  /* Arg strings, each '\0' terminated, concatenated.  */
+  char args[FLEXIBLE_ARRAY_MEMBER];
 };
 
 /* Head of the chain of queues messages.  */
@@ -91,40 +101,43 @@ fatal (char const *msgid)
 }
 
 /* Like printf, except if -l in effect then save the message and print later.
+   Also, all arguments must be char * or char const *.
    This is used for things like "Only in ...".  */
 
 void
-message (char const *format_msgid, char const *arg1, char const *arg2)
+message (char const *format_msgid, ...)
 {
-  message5 (format_msgid, arg1, arg2, 0, 0);
-}
+  va_list ap;
+  va_start (ap, format_msgid);
 
-void
-message5 (char const *format_msgid, char const *arg1, char const *arg2,
-          char const *arg3, char const *arg4)
-{
   if (paginate)
     {
-      char *p;
-      char const *arg[5];
-      int i;
-      size_t size[5];
-      size_t total_size = offsetof (struct msg, args);
-      struct msg *new;
+      size_t argbytes = 0;
 
-      arg[0] = format_msgid;
-      arg[1] = arg1;
-      arg[2] = arg2;
-      arg[3] = arg3 ? arg3 : "";
-      arg[4] = arg4 ? arg4 : "";
+      for (char const *m = format_msgid; *m; m++)
+	if (*m == '%')
+	  {
+	    if (m[1] == '%')
+	      m++;
+	    else
+	      argbytes += strlen (va_arg (ap, char const *)) + 1;
+	  }
+      va_end (ap);
 
-      for (i = 0;  i < 5;  i++)
-        total_size += size[i] = strlen (arg[i]) + 1;
+      struct msg *new = xmalloc (FLEXSIZEOF (struct msg, args, argbytes));
+      new->msgid = format_msgid;
+      new->argbytes = argbytes;
 
-      new = xmalloc (total_size);
-
-      for (i = 0, p = new->args;  i < 5;  p += size[i++])
-        memcpy (p, arg[i], size[i]);
+      va_start (ap, format_msgid);
+      char *p = new->args;
+      for (char const *m = format_msgid; *m; m++)
+	if (*m == '%')
+	  {
+	    if (m[1] == '%')
+	      m++;
+	    else
+	      p = stpcpy (p, va_arg (ap, char const *)) + 1;
+	  }
 
       *msg_chain_end = new;
       new->next = 0;
@@ -134,8 +147,10 @@ message5 (char const *format_msgid, char const *arg1, char const *arg2,
     {
       if (sdiff_merge_assist)
         putchar (' ');
-      printf (_(format_msgid), arg1, arg2, arg3, arg4);
+      vprintf (_(format_msgid), ap);
     }
+
+  va_end (ap);
 }
 
 /* Output all the messages that were saved up by calls to 'message'.  */
@@ -143,32 +158,74 @@ message5 (char const *format_msgid, char const *arg1, char const *arg2,
 void
 print_message_queue (void)
 {
-  char const *arg[5];
-  int i;
-  struct msg *m = msg_chain;
-
-  while (m)
+  for (struct msg *m = msg_chain; m; )
     {
+      /* Change this if diff ever has messages with more than 4 args.  */
+      char const *p = m->args;
+      char const *plim = p + m->argbytes;
+      /* Unroll the loop to work around GCC 12 bug with
+	 -Wanalyzer-use-of-uninitialized-value.  */
+      char const *arg0 = p; p += p < plim ? strlen (p) + 1 : 0;
+      char const *arg1 = p; p += p < plim ? strlen (p) + 1 : 0;
+      char const *arg2 = p; p += p < plim ? strlen (p) + 1 : 0;
+      char const *arg3 = p; p += p < plim ? strlen (p) + 1 : 0;
+      printf (_(m->msgid), arg0, arg1, arg2, arg3);
+      if (p < plim)
+	abort ();
       struct msg *next = m->next;
-      arg[0] = m->args;
-      for (i = 0;  i < 4;  i++)
-        arg[i + 1] = arg[i] + strlen (arg[i]) + 1;
-      printf (_(arg[0]), arg[1], arg[2], arg[3], arg[4]);
       free (m);
       m = next;
     }
 }
-
-/* The set of signals that are caught.  */
 
+/* Signal handling, needed for restoring default colors.  */
+
+static void
+xsigaddset (sigset_t *set, int sig)
+{
+  if (sigaddset (set, sig) != 0)
+    pfatal_with_name ("sigaddset");
+}
+
+static bool
+xsigismember (sigset_t const *set, int sig)
+{
+  int mem = sigismember (set, sig);
+  if (mem < 0)
+    pfatal_with_name ("sigismember");
+  assume (mem <= 1);
+  return mem;
+}
+
+typedef void (*signal_handler) (int);
+static signal_handler
+xsignal (int sig, signal_handler func)
+{
+  signal_handler h = signal (sig, func);
+  if (h == SIG_ERR)
+    pfatal_with_name ("signal");
+  return h;
+}
+
+static void
+xsigprocmask (int how, sigset_t const *restrict set, sigset_t *restrict oset)
+{
+  if (sigprocmask (how, set, oset) != 0)
+    pfatal_with_name ("sigprocmask");
+}
+
+/* If true, some signals are caught.  This is separate from
+   'caught_signals' because POSIX doesn't require an all-zero sigset_t
+   to be valid.  */
+static bool some_signals_caught;
+
+/* The set of signals that are caught.  */
 static sigset_t caught_signals;
 
 /* If nonzero, the value of the pending fatal signal.  */
-
 static sig_atomic_t volatile interrupt_signal;
 
 /* A count of the number of pending stop signals that have been received.  */
-
 static sig_atomic_t volatile stop_signal_count;
 
 /* An ordinary signal was received; arrange for the program to exit.  */
@@ -201,21 +258,17 @@ stophandler (int sig)
 static void
 process_signals (void)
 {
-  while (interrupt_signal || stop_signal_count)
+  while (interrupt_signal | stop_signal_count)
     {
-      int sig;
-      int stops;
-      sigset_t oldset;
-
       set_color_context (RESET_CONTEXT);
       fflush (stdout);
 
-      sigprocmask (SIG_BLOCK, &caught_signals, &oldset);
+      sigset_t oldset;
+      xsigprocmask (SIG_BLOCK, &caught_signals, &oldset);
 
-      /* Reload interrupt_signal and stop_signal_count, in case a new
-         signal was handled before sigprocmask took effect.  */
-      sig = interrupt_signal;
-      stops = stop_signal_count;
+      /* Reload stop_signal_count and (if needed) interrupt_signal, in
+	 case a new signal was handled before sigprocmask took effect.  */
+      int stops = stop_signal_count, sig;
 
       /* SIGTSTP is special, since the application can receive that signal
          more than once.  In this case, don't set the signal handler to the
@@ -226,82 +279,122 @@ process_signals (void)
           sig = SIGSTOP;
         }
       else
-        signal (sig, SIG_DFL);
+	{
+	  sig = interrupt_signal;
+	  xsignal (sig, SIG_DFL);
+	}
 
       /* Exit or suspend the program.  */
-      raise (sig);
-      sigprocmask (SIG_SETMASK, &oldset, NULL);
+      if (raise (sig) != 0)
+	pfatal_with_name ("raise");
+      xsigprocmask (SIG_SETMASK, &oldset, nullptr);
 
       /* If execution reaches here, then the program has been
          continued (after being suspended).  */
     }
 }
 
+/* The signals that can be caught, the number of such signals,
+   and which of them are actually caught.  */
+static int const sig[] =
+  {
+#ifdef SIGTSTP
+    /* This one is handled specially; see is_tstp_index.  */
+    SIGTSTP,
+#endif
+
+    /* The usual suspects.  */
+#ifdef SIGALRM
+    SIGALRM,
+#endif
+    SIGHUP, SIGINT, SIGPIPE,
+#ifdef SIGQUIT
+    SIGQUIT,
+#endif
+    SIGTERM,
+#ifdef SIGPOLL
+    SIGPOLL,
+#endif
+#ifdef SIGPROF
+    SIGPROF,
+#endif
+#ifdef SIGVTALRM
+    SIGVTALRM,
+#endif
+#ifdef SIGXCPU
+    SIGXCPU,
+#endif
+#ifdef SIGXFSZ
+    SIGXFSZ,
+#endif
+  };
+enum { nsigs = sizeof (sig) / sizeof *(sig) };
+
+/* True if sig[j] == SIGTSTP.  */
+static bool
+is_tstp_index (int j)
+{
+#ifdef SIGTSTP
+  return j == 0;
+#else
+  return false;
+#endif
+}
+
 static void
 install_signal_handlers (void)
 {
-  /* The signals that are trapped, and the number of such signals.  */
-  static int const sig[] =
-    {
-      /* This one is handled specially.  */
-      SIGTSTP,
+  if (sigemptyset (&caught_signals) != 0)
+    pfatal_with_name ("sigemptyset");
 
-      /* The usual suspects.  */
-      SIGALRM, SIGHUP, SIGINT, SIGPIPE, SIGQUIT, SIGTERM,
-#ifdef SIGPOLL
-      SIGPOLL,
-#endif
-#ifdef SIGPROF
-      SIGPROF,
-#endif
-#ifdef SIGVTALRM
-      SIGVTALRM,
-#endif
-#ifdef SIGXCPU
-      SIGXCPU,
-#endif
-#ifdef SIGXFSZ
-      SIGXFSZ,
-#endif
-    };
-  enum { nsigs = sizeof (sig) / sizeof *(sig) };
-
-#if ! SA_NOCLDSTOP
-  bool caught_sig[nsigs];
-#endif
-  {
-    int j;
 #if SA_NOCLDSTOP
-    struct sigaction act;
+  for (int j = 0; j < nsigs; j++)
+    {
+      struct sigaction actj;
+      if (sigaction (sig[j], nullptr, &actj) == 0 && actj.sa_handler != SIG_IGN)
+	xsigaddset (&caught_signals, sig[j]);
+    }
 
-    sigemptyset (&caught_signals);
-    for (j = 0; j < nsigs; j++)
+  struct sigaction act;
+  act.sa_mask = caught_signals;
+  act.sa_flags = SA_RESTART;
+
+  for (int j = 0; j < nsigs; j++)
+    if (xsigismember (&caught_signals, sig[j]))
       {
-        sigaction (sig[j], NULL, &act);
-        if (act.sa_handler != SIG_IGN)
-          sigaddset (&caught_signals, sig[j]);
+	act.sa_handler = is_tstp_index (j) ? stophandler : sighandler;
+	if (sigaction (sig[j], &act, nullptr) != 0)
+	  pfatal_with_name ("sigaction");
+	some_signals_caught = true;
       }
-
-    act.sa_mask = caught_signals;
-    act.sa_flags = SA_RESTART;
-
-    for (j = 0; j < nsigs; j++)
-      if (sigismember (&caught_signals, sig[j]))
-        {
-          act.sa_handler = sig[j] == SIGTSTP ? stophandler : sighandler;
-          sigaction (sig[j], &act, NULL);
-        }
 #else
-    for (j = 0; j < nsigs; j++)
-      {
-        caught_sig[j] = (signal (sig[j], SIG_IGN) != SIG_IGN);
-        if (caught_sig[j])
-          {
-            signal (sig[j], sig[j] == SIGTSTP ? stophandler : sighandler);
-            siginterrupt (sig[j], 0);
-          }
-      }
+  for (int j = 0; j < nsigs; j++)
+    {
+      signal_handler h = signal (sig[j], SIG_IGN);
+      if (h != SIG_IGN && h != SIG_ERR)
+	{
+	  xsigaddset (&caught_signals, sig[j]);
+	  xsignal (sig[j], is_tstp_index (j) ? stophandler : sighandler);
+	  some_signals_caught = true;
+	  if (siginterrupt (sig[j], 0) != 0)
+	    pfatal_with_name ("siginterrupt");
+	}
+    }
 #endif
+}
+
+/* Clean up signal handlers just before exiting the program.  Do this
+   by resetting signal actions back to default, and then processing
+   any signals that arrived before resetting.  */
+void
+cleanup_signal_handlers (void)
+{
+  if (some_signals_caught)
+    {
+      for (int j = 0; j < nsigs; j++)
+	if (xsigismember (&caught_signals, sig[j]))
+	  xsignal (sig[j], SIG_DFL);
+      process_signals ();
     }
 }
 
@@ -310,7 +403,7 @@ static char const *current_name1;
 static bool currently_recursive;
 static bool colors_enabled;
 
-static struct color_ext_type *color_ext_list = NULL;
+static struct color_ext_type *color_ext_list = nullptr;
 
 struct bin_str
   {
@@ -549,7 +642,7 @@ static struct bin_str color_indicator[] =
   {
     { LEN_STR_PAIR ("\033[") },		/* lc: Left of color sequence */
     { LEN_STR_PAIR ("m") },		/* rc: Right of color sequence */
-    { 0, NULL },			/* ec: End color (replaces lc+rs+rc) */
+    { 0, nullptr },			/* ec: End color (replaces lc+rs+rc) */
     { LEN_STR_PAIR ("0") },		/* rs: Reset to ordinary colors */
     { LEN_STR_PAIR ("1") },		/* hd: Header */
     { LEN_STR_PAIR ("32") },		/* ad: Add line */
@@ -559,7 +652,7 @@ static struct bin_str color_indicator[] =
 
 static const char *const indicator_name[] =
   {
-    "lc", "rc", "ec", "rs", "hd", "ad", "de", "ln", NULL
+    "lc", "rc", "ec", "rs", "hd", "ad", "de", "ln", nullptr
   };
 ARGMATCH_VERIFY (indicator_name, color_indicator);
 
@@ -578,14 +671,14 @@ parse_diff_color (void)
   const char *p;		/* Pointer to character being parsed */
   char *buf;			/* color_buf buffer pointer */
   int ind_no;			/* Indicator number */
-  char label[3];		/* Indicator label */
+  char label[] = "??";		/* Indicator label */
   struct color_ext_type *ext;	/* Extension we are working on */
 
-  if ((p = color_palette) == NULL || *p == '\0')
+  p = color_palette;
+  if (p == nullptr || *p == '\0')
     return;
 
-  ext = NULL;
-  strcpy (label, "??");
+  ext = nullptr;
 
   /* This is an overly conservative estimate, but any possible
      --palette string will *not* generate a color_buf longer than
@@ -647,7 +740,7 @@ parse_diff_color (void)
           state = PS_FAIL;	/* Assume failure...  */
           if (*(p++) == '=')/* It *should* be...  */
             {
-              for (ind_no = 0; indicator_name[ind_no] != NULL; ++ind_no)
+              for (ind_no = 0; indicator_name[ind_no] != nullptr; ++ind_no)
                 {
                   if (STREQ (label, indicator_name[ind_no]))
                     {
@@ -691,7 +784,7 @@ parse_diff_color (void)
       error (0, 0,
              _("unparsable value for --palette"));
       free (color_buf);
-      for (e = color_ext_list; e != NULL; /* empty */)
+      for (e = color_ext_list; e != nullptr; /* empty */)
         {
           e2 = e;
           e = e->next;
@@ -842,7 +935,14 @@ begin_output (void)
      of the pathnames, and it requires two spaces after "diff" if
      there are no options.  These requirements are silly and do not
      match historical practice.  */
-  name = xasprintf ("diff%s %s %s", switch_string, names[0], names[1]);
+  name = xmalloc (sizeof "diff" + strlen (switch_string)
+		  + 1 + strlen (names[0]) + 1 + strlen (names[1]));
+  char *p = stpcpy (name, "diff");
+  p = stpcpy (p, switch_string);
+  *p++ = ' ';
+  p = stpcpy (p, names[0]);
+  *p++ = ' ';
+  strcpy (p, names[1]);
 
   if (paginate)
     {
@@ -1145,13 +1245,13 @@ lines_differ (char const *s1, char const *s2)
 /* Find the consecutive changes at the start of the script START.
    Return the last link before the first gap.  */
 
-struct change * _GL_ATTRIBUTE_CONST
+struct change * ATTRIBUTE_CONST
 find_change (struct change *start)
 {
   return start;
 }
 
-struct change * _GL_ATTRIBUTE_CONST
+struct change * ATTRIBUTE_CONST
 find_reverse_change (struct change *start)
 {
   return start;
@@ -1393,20 +1493,18 @@ char const change_letter[] = { 0, 'd', 'a', 'c' };
    Internal line numbers count from 0 starting after the prefix.
    Actual line numbers count from 1 within the entire file.  */
 
-lin _GL_ATTRIBUTE_PURE
+lin ATTRIBUTE_PURE
 translate_line_number (struct file_data const *file, lin i)
 {
   return i + file->prefix_lines + 1;
 }
 
-/* Translate a line number range.  This is always done for printing,
-   so for convenience translate to printint rather than lin, so that the
-   caller can use printf with "%"pI"d" without casting.  */
+/* Translate a line number range.  */
 
 void
 translate_range (struct file_data const *file,
                  lin a, lin b,
-                 printint *aptr, printint *bptr)
+                 lin *aptr, lin *bptr)
 {
   *aptr = translate_line_number (file, a - 1) + 1;
   *bptr = translate_line_number (file, b + 1) - 1;
@@ -1421,7 +1519,7 @@ translate_range (struct file_data const *file,
 void
 print_number_range (char sepchar, struct file_data *file, lin a, lin b)
 {
-  printint trans_a, trans_b;
+  lin trans_a, trans_b;
   translate_range (file, a, b, &trans_a, &trans_b);
 
   /* Note: we can have B < A in the case of a range of no lines.
@@ -1537,40 +1635,16 @@ analyze_hunk (struct change *hunk,
   return (show_from ? OLD : UNCHANGED) | (show_to ? NEW : UNCHANGED);
 }
 
-/* Concatenate three strings, returning a newly malloc'd string.  */
-
-char *
-concat (char const *s1, char const *s2, char const *s3)
-{
-  char *new = xmalloc (strlen (s1) + strlen (s2) + strlen (s3) + 1);
-  sprintf (new, "%s%s%s", s1, s2, s3);
-  return new;
-}
-
-/* Yield a new block of SIZE bytes, initialized to zero.  */
-
-void *
-zalloc (size_t size)
-{
-  void *p = xmalloc (size);
-  memset (p, 0, size);
-  return p;
-}
-
+#ifdef DEBUG
 void
 debug_script (struct change *sp)
 {
   fflush (stdout);
 
   for (; sp; sp = sp->link)
-    {
-      printint line0 = sp->line0;
-      printint line1 = sp->line1;
-      printint deleted = sp->deleted;
-      printint inserted = sp->inserted;
-      fprintf (stderr, "%3"pI"d %3"pI"d delete %"pI"d insert %"pI"d\n",
-               line0, line1, deleted, inserted);
-    }
+    fprintf (stderr, "%3"pI"d %3"pI"d delete %"pI"d insert %"pI"d\n",
+	     sp->line0, sp->line1, sp->deleted, sp->inserted);
 
   fflush (stderr);
 }
+#endif

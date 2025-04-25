@@ -1,7 +1,7 @@
 /* Shared definitions for GNU DIFF
 
    Copyright (C) 1988-1989, 1991-1995, 1998, 2001-2002, 2004, 2009-2013,
-   2015-2021 Free Software Foundation, Inc.
+   2015-2023 Free Software Foundation, Inc.
 
    This file is part of GNU DIFF.
 
@@ -22,6 +22,16 @@
 #include <regex.h>
 #include <stdio.h>
 #include <unlocked-io.h>
+
+_GL_INLINE_HEADER_BEGIN
+
+#ifdef GDIFF_MAIN
+# define DIFF_INLINE _GL_EXTERN_INLINE
+# define XTERN
+#else
+# define DIFF_INLINE _GL_INLINE
+# define XTERN extern
+#endif
 
 /* What kind of changes a hunk contains.  */
 enum changes
@@ -53,12 +63,6 @@ enum colors_style
 };
 
 /* Variables for command line options */
-
-#ifndef GDIFF_MAIN
-# define XTERN extern
-#else
-# define XTERN
-#endif
 
 enum output_style
 {
@@ -92,7 +96,10 @@ enum output_style
 
 /* True for output styles that are robust,
    i.e. can handle a file that ends in a non-newline.  */
-#define ROBUST_OUTPUT_STYLE(S) ((S) != OUTPUT_ED && (S) != OUTPUT_FORWARD_ED)
+DIFF_INLINE bool robust_output_style (enum output_style s)
+{
+  return s != OUTPUT_ED && s != OUTPUT_FORWARD_ED;
+}
 
 XTERN enum output_style output_style;
 
@@ -154,6 +161,13 @@ XTERN bool ignore_file_name_case;
 /* Act on symbolic links themselves rather than on their target
    (--no-dereference).  */
 XTERN bool no_dereference_symlinks;
+
+/* Local timezone for 'c' output headers, if needed.  */
+#if HAVE_TM_GMTOFF
+# define localtz 0 /* Placeholder since localtz is never needed.  */
+#else
+XTERN timezone_t localtz;
+#endif
 
 /* File labels for '-c' output headers (--label).  */
 XTERN char *file_label[2];
@@ -322,10 +336,6 @@ struct file_data {
     lin equiv_max;
 };
 
-/* The file buffer, considered as an array of bytes rather than
-   as an array of words.  */
-#define FILE_BUFFER(f) ((char *) (f)->buffer)
-
 /* Data on two input files being compared.  */
 
 struct comparison
@@ -355,7 +365,9 @@ extern void print_context_script (struct change *, bool);
 extern int diff_dirs (struct comparison const *,
                       int (*) (struct comparison const *,
                                char const *, char const *));
-extern char *find_dir_file_pathname (char const *, char const *);
+extern char *find_dir_file_pathname (char const *, char const *)
+  ATTRIBUTE_MALLOC ATTRIBUTE_DEALLOC_FREE
+  ATTRIBUTE_RETURNS_NONNULL;
 
 /* ed.c */
 extern void print_ed_script (struct change *);
@@ -380,24 +392,21 @@ extern void print_sdiff_script (struct change *);
 /* util.c */
 extern char const change_letter[4];
 extern char const pr_program[];
-extern char *concat (char const *, char const *, char const *);
-extern bool lines_differ (char const *, char const *) _GL_ATTRIBUTE_PURE;
+extern bool lines_differ (char const *, char const *) ATTRIBUTE_PURE;
 extern lin translate_line_number (struct file_data const *, lin);
 extern struct change *find_change (struct change *);
 extern struct change *find_reverse_change (struct change *);
-extern void *zalloc (size_t);
 extern enum changes analyze_hunk (struct change *, lin *, lin *, lin *, lin *);
 extern void begin_output (void);
+extern void cleanup_signal_handlers (void);
 extern void debug_script (struct change *);
-extern void fatal (char const *) __attribute__((noreturn));
+extern _Noreturn void fatal (char const *);
 extern void finish_output (void);
-extern void message (char const *, char const *, char const *);
-extern void message5 (char const *, char const *, char const *,
-                      char const *, char const *);
+extern void message (char const *, ...) ATTRIBUTE_FORMAT ((printf, 1, 2));
 extern void output_1_line (char const *, char const *, char const *,
                            char const *);
 extern void perror_with_name (char const *);
-extern void pfatal_with_name (char const *) __attribute__((noreturn));
+extern _Noreturn void pfatal_with_name (char const *);
 extern void print_1_line (char const *, char const * const *);
 extern void print_1_line_nl (char const *, char const * const *, bool);
 extern void print_message_queue (void);
@@ -405,8 +414,7 @@ extern void print_number_range (char, struct file_data *, lin, lin);
 extern void print_script (struct change *, struct change * (*) (struct change *),
                           void (*) (struct change *));
 extern void setup_output (char const *, char const *, bool);
-extern void translate_range (struct file_data const *, lin, lin,
-                             printint *, printint *);
+extern void translate_range (struct file_data const *, lin, lin, lin *, lin *);
 
 enum color_context
 {
@@ -421,3 +429,5 @@ XTERN bool presume_output_tty;
 
 extern void set_color_context (enum color_context color_context);
 extern void set_color_palette (char const *palette);
+
+_GL_INLINE_HEADER_END
